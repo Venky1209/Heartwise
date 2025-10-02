@@ -1,0 +1,113 @@
+# HeartWise ECG System - Docker Deployment
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: heartwise-postgres
+    environment:
+      POSTGRES_DB: heartwise_ecg
+      POSTGRES_USER: heartwise_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-heartwise_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - heartwise-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heartwise_user -d heartwise_ecg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API Server
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: heartwise-backend
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: heartwise_ecg
+      DB_USER: heartwise_user
+      DB_PASSWORD: ${DB_PASSWORD:-heartwise_password}
+      PORT: 5000
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - heartwise-network
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React Application
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: heartwise-frontend
+    environment:
+      REACT_APP_BACKEND_URL: http://localhost:5000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - heartwise-network
+    restart: unless-stopped
+
+  # Redis for session management and caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: heartwise-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - heartwise-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: heartwise-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - heartwise-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  heartwise-network:
+    driver: bridge
