@@ -26,7 +26,7 @@ const char* WIFI_SSID = "Dayalan";       // ✓ Your WiFi name (2.4GHz)
 const char* WIFI_PASSWORD = "9994238295@D";   // ✓ Your WiFi password
 
 // Server Configuration (Your Mac's IP address)
-const char* SERVER_IP = "192.168.1.2";  // ← Your Mac's current IP address
+const char* SERVER_IP = "192.168.1.11";  // ← Your Mac's current IP address
 const int SERVER_PORT = 5001;
 const char* WEBSOCKET_PATH = "/ws/esp32";  // Plain WebSocket path for ESP32
 

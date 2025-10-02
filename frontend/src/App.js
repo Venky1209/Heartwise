@@ -49,6 +49,7 @@ function App() {
                 <Route path="/sessions/:id" element={<SessionDetail />} />
                 <Route path="/devices" element={<Devices />} />
                 <Route path="/analysis" element={<Analysis />} />
+                <Route path="/analysis/:sessionId" element={<Analysis />} />
               </Routes>
             </Layout>
             <Toaster

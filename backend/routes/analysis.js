@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const axios = require('axios');
+const ecgAnalyzer = require('../utils/ecgAnalyzer');
+
+// ML Service URL (force IPv4)
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5002';
+
+// Configure axios to prefer IPv4
+axios.defaults.family = 4;
 
 // Validation schema for analysis results
 const analysisSchema = Joi.object({
@@ -389,5 +397,269 @@ router.get('/patient/:patientId/summary', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch patient analysis summary' });
   }
 });
+
+// NEW: Hybrid ECG Analysis Endpoint (Rule-Based + ML)
+router.post('/hybrid/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    console.log(`Starting hybrid analysis for session: ${sessionId}`);
+
+    // Step 1: Fetch ECG data from database
+    const ecgDataQuery = `
+      SELECT timestamp_ms, voltage_mv, created_at
+      FROM ecg_data_points
+      WHERE session_id = $1
+      ORDER BY timestamp_ms ASC
+      LIMIT 50000
+    `;
+    
+    const ecgDataResult = await req.app.locals.db.query(ecgDataQuery, [sessionId]);
+    
+    if (ecgDataResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'No ECG data found for this session',
+        sessionId 
+      });
+    }
+
+    console.log(`Fetched ${ecgDataResult.rows.length} ECG data points`);
+
+    // Step 2: Run Rule-Based Analysis (Pan-Tompkins)
+    const ruleBasedAnalysis = ecgAnalyzer.analyzeSession(ecgDataResult.rows);
+    
+    console.log('Rule-based analysis completed:', {
+      heartRate: ruleBasedAnalysis.metrics?.heartRate,
+      arrhythmias: ruleBasedAnalysis.arrhythmias?.length
+    });
+
+    // Step 3: Prepare data for ML Service (Enhanced AI Analysis)
+    const ecgData = ecgDataResult.rows.map(row => ({
+      timestamp_ms: row.timestamp_ms,
+      voltage_mv: row.voltage_mv || 0
+    }));
+
+    // Step 4: Call ML Service for Advanced AI-Powered Analysis
+    let mlAnalysis = null;
+    try {
+      console.log('Calling ML service for AI diagnosis...');
+      const mlResponse = await axios.post(`${ML_SERVICE_URL}/analyze`, {
+        sessionId: sessionId,
+        ecgData: ecgData,
+        sampleRate: 250
+      }, {
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        family: 4 // Force IPv4 to avoid ::1 (IPv6) connection issues
+      });
+      
+      mlAnalysis = mlResponse.data;
+      console.log('✓ AI Analysis completed:', {
+        classification: mlAnalysis.classification,
+        confidence: mlAnalysis.confidence,
+        riskLevel: mlAnalysis.risk_level,
+        heartRate: mlAnalysis.details?.heartRate
+      });
+    } catch (mlError) {
+      console.warn('⚠ ML service unavailable, using rule-based only:', mlError.message);
+      mlAnalysis = {
+        classification: 'Unknown',
+        confidence: 0,
+        risk_level: 'unknown',
+        details: {
+          heartRate: 0,
+          rhythm: 'Unknown',
+          abnormalities: [{
+            type: 'ML Service Unavailable',
+            severity: 'Info',
+            description: 'Using rule-based analysis only',
+            recommendation: 'ML service is not running on port 5002'
+          }]
+        },
+        message: 'ML service unavailable - ensure Python ML service is running on port 5002'
+      };
+    }
+
+    // Step 5: Combine Results (Enhanced with AI)
+    const combinedAnalysis = {
+      sessionId,
+      timestamp: new Date().toISOString(),
+      analysisType: 'hybrid_ai_ml',
+      
+      // AI/ML Classification (Primary)
+      aiDiagnosis: {
+        classification: mlAnalysis.classification || 'Unknown',
+        confidence: mlAnalysis.confidence || 0,
+        riskLevel: mlAnalysis.riskLevel || mlAnalysis.risk_level || 'unknown',
+        heartRate: mlAnalysis.details?.heartRate || mlAnalysis.heartRate || ruleBasedAnalysis.metrics?.heartRate || 0,
+        rhythm: mlAnalysis.details?.rhythm || 'Unknown',
+        qrsCount: mlAnalysis.details?.qrsCount || ruleBasedAnalysis.metrics?.rPeakCount || 0,
+        hrv: mlAnalysis.details?.hrv || ruleBasedAnalysis.metrics?.hrv || {},
+        signalQuality: mlAnalysis.details?.signalQuality || ruleBasedAnalysis.metrics?.signalQuality || {},
+        abnormalities: mlAnalysis.details?.abnormalities || [],
+        recommendations: mlAnalysis.recommendations || []
+      },
+      
+      // Alias for frontend compatibility
+      mlClassification: {
+        classification: mlAnalysis.classification || 'Unknown',
+        diagnosis: mlAnalysis.classification || 'Unknown',
+        confidence: mlAnalysis.confidence || 0
+      },
+      
+      // Rule-based metrics (Secondary/Backup) 
+      basicMetrics: {
+        heartRate: mlAnalysis.details?.heartRate || mlAnalysis.heartRate || ruleBasedAnalysis.metrics?.heartRate || 0,
+        rPeakCount: mlAnalysis.details?.qrsCount || ruleBasedAnalysis.metrics?.rPeakCount || 0,
+        avgRRInterval: ruleBasedAnalysis.metrics?.avgRRInterval || 0,
+        hrv: mlAnalysis.details?.hrv || ruleBasedAnalysis.metrics?.hrv || {},
+        signalQuality: mlAnalysis.details?.signalQuality || ruleBasedAnalysis.metrics?.signalQuality || {}
+      },
+      
+      // Rule-based arrhythmia detection (Backup)
+      ruleBasedArrhythmias: ruleBasedAnalysis.arrhythmias || [],
+      
+      // Overall assessment (use AI if available, fallback to rule-based)
+      overallRisk: mlAnalysis.riskLevel || mlAnalysis.risk_level || determineOverallRisk(
+        ruleBasedAnalysis.arrhythmias,
+        mlAnalysis.classification
+      ),
+      
+      // Combined recommendations
+      recommendations: mlAnalysis.recommendations || generateRecommendations(
+        ruleBasedAnalysis.arrhythmias,
+        mlAnalysis.classification,
+        ruleBasedAnalysis.metrics
+      ),
+      
+      // Data statistics
+      dataStats: {
+        totalPoints: ecgDataResult.rows.length,
+        duration: ecgDataResult.rows.length / 250, // seconds
+        samplingRate: 250
+      },
+      
+      // Analysis metadata
+      metadata: {
+        mlServiceAvailable: mlAnalysis.classification !== 'Unknown',
+        analysisEngine: mlAnalysis.analysis_type || 'hybrid',
+        modelVersion: 'v1.0-ai-enhanced'
+      }
+    };
+
+    // Step 6: Save analysis results to database
+    try {
+      const saveQuery = `
+        INSERT INTO ecg_analysis_results (
+          session_id, 
+          analysis_type, 
+          confidence_score, 
+          predictions, 
+          abnormalities_detected, 
+          risk_level, 
+          recommendations,
+          model_version
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `;
+      
+      await req.app.locals.db.query(saveQuery, [
+        sessionId,
+        'hybrid_ai_ml',
+        mlAnalysis.confidence || 0.5,
+        JSON.stringify(combinedAnalysis.aiDiagnosis),
+        JSON.stringify(combinedAnalysis.aiDiagnosis.abnormalities),
+        // Map risk level to database allowed values (low, medium, high, critical)
+        (combinedAnalysis.overallRisk || 'unknown').toLowerCase().replace('unknown', 'low'),
+        Array.isArray(combinedAnalysis.recommendations) 
+          ? combinedAnalysis.recommendations.join('; ')
+          : combinedAnalysis.recommendations || 'No recommendations available',
+        'v1.0-ai-enhanced'
+      ]);
+      
+      console.log('Analysis results saved to database');
+    } catch (saveError) {
+      console.error('Error saving analysis to database:', saveError);
+      // Continue even if save fails
+    }
+
+    // Step 7: Return combined results
+    console.log('📊 Sending analysis response to frontend:', JSON.stringify({
+      heartRate: combinedAnalysis.basicMetrics?.heartRate,
+      mlClassification: combinedAnalysis.mlClassification,
+      aiDiagnosis: combinedAnalysis.aiDiagnosis,
+      overallRisk: combinedAnalysis.overallRisk
+    }, null, 2));
+    
+    res.json({
+      success: true,
+      analysis: combinedAnalysis
+    });
+
+  } catch (error) {
+    console.error('Error in hybrid analysis:', error);
+    res.status(500).json({ 
+      error: 'Analysis failed',
+      message: error.message,
+      details: error.stack
+    });
+  }
+});
+
+// Helper: Determine overall risk level
+function determineOverallRisk(arrhythmias, mlClassification) {
+  // Check for high-severity arrhythmias
+  const highSeverityArrhythmias = arrhythmias.filter(a => a.severity === 'high');
+  if (highSeverityArrhythmias.length > 0) return 'high';
+  
+  // Check ML classification
+  if (mlClassification && mlClassification.toLowerCase().includes('abnormal')) return 'medium';
+  if (mlClassification && mlClassification.toLowerCase().includes('arrhythmia')) return 'medium';
+  
+  // Check for medium severity
+  const mediumSeverityArrhythmias = arrhythmias.filter(a => a.severity === 'medium');
+  if (mediumSeverityArrhythmias.length > 0) return 'medium';
+  
+  // Low risk
+  return 'low';
+}
+
+// Helper: Generate recommendations
+function generateRecommendations(arrhythmias, mlClassification, metrics) {
+  const recommendations = [];
+  
+  // Based on arrhythmias
+  if (arrhythmias.length === 0) {
+    recommendations.push('No significant arrhythmias detected. Continue regular monitoring.');
+  } else {
+    arrhythmias.forEach(arr => {
+      if (arr.type === 'Tachycardia') {
+        recommendations.push('Elevated heart rate detected. Consider stress management and consult with a cardiologist.');
+      } else if (arr.type === 'Bradycardia') {
+        recommendations.push('Low heart rate detected. Monitor for symptoms of fatigue or dizziness.');
+      } else if (arr.type === 'Possible Atrial Fibrillation') {
+        recommendations.push('Irregular rhythm detected. Immediate consultation with a cardiologist is recommended.');
+      }
+    });
+  }
+  
+  // Based on signal quality
+  if (metrics && metrics.signalQuality && metrics.signalQuality.score < 60) {
+    recommendations.push('Signal quality was suboptimal. Consider retaking ECG with better electrode contact.');
+  }
+  
+  // Based on ML classification
+  if (mlClassification && mlClassification.toLowerCase() !== 'normal') {
+    recommendations.push('ML analysis suggests potential abnormality. Professional ECG interpretation recommended.');
+  }
+  
+  // General recommendations
+  recommendations.push('This is an automated analysis. Always consult with a healthcare professional for medical decisions.');
+  
+  return recommendations;
+}
 
 module.exports = router;
