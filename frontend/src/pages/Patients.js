@@ -7,7 +7,7 @@ import {
   TrashIcon,
   HeartIcon
 } from '@heroicons/react/24/outline';
-import axios from 'axios';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 const Patients = () => {
@@ -39,13 +39,13 @@ const Patients = () => {
   const fetchPatients = async (page = 1, search = '') => {
     try {
       setLoading(true);
-      let url = `http://localhost:5001/api/patients?page=${page}&limit=10`;
+      let url = `/patients?page=${page}&limit=10`;
       
       if (search) {
-        url = `http://localhost:5001/api/patients/search/${encodeURIComponent(search)}`;
+        url = `/patients/search/${encodeURIComponent(search)}`;
       }
       
-      const response = await axios.get(url);
+      const response = await api.get(url);
       
       if (search) {
         setPatients(response.data);
@@ -106,7 +106,7 @@ const Patients = () => {
       };
 
       console.log('Submitting patient data:', patientData);
-      const response = await axios.post('http://localhost:5001/api/patients', patientData);
+      const response = await api.post('/patients', patientData);
       console.log('Patient added successfully:', response.data);
       
       setShowAddModal(false);
@@ -144,7 +144,7 @@ const Patients = () => {
     e.preventDefault();
     
     try {
-      await axios.put(`http://localhost:5001/api/patients/${editingPatient.id}`, editingPatient);
+      await api.put(`/patients/${editingPatient.id}`, editingPatient);
       
       setEditingPatient(null);
       toast.success('Patient updated successfully');
@@ -165,7 +165,7 @@ const Patients = () => {
     }
     
     try {
-      await axios.delete(`http://localhost:5001/api/patients/${patientId}`);
+      await api.delete(`/patients/${patientId}`);
       toast.success('Patient deleted successfully');
       fetchPatients();
     } catch (error) {

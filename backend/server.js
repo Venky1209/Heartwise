@@ -14,6 +14,10 @@ const sessionsRouter = require('./routes/sessions');
 const ecgDataRouter = require('./routes/ecgData');
 const devicesRouter = require('./routes/devices');
 const analysisRouter = require('./routes/analysis');
+const { router: authRouter } = require('./routes/auth');
+const profileRouter = require('./routes/profile');
+const healthSummaryRouter = require('./routes/healthSummary');
+const dietRouter = require('./routes/diet');
 
 // Environment configuration
 require('dotenv').config();
@@ -33,7 +37,7 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'heartwise_ecg',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'password',
+  password: process.env.DB_PASSWORD || 'gugan@2022',
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -67,15 +71,27 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.locals.db = pool;
 app.locals.esp32Connections = esp32Connections;
 
-// Routes
+// Initialize routes with database pool
+authRouter.initializePool(pool);
+profileRouter.initializePool(pool);
+healthSummaryRouter.initializePool(pool);
+dietRouter.initializePool(pool);
+
+// Mount routes
+app.use('/api/auth', authRouter);
+app.use('/api/profile', profileRouter);
 app.use('/api/patients', patientsRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/ecg-data', ecgDataRouter);
 app.use('/api/devices', devicesRouter);
 app.use('/api/analysis', analysisRouter);
 
-// Health check endpoint
-app.get('/api/health', async (req, res) => {
+// Health and Diet routes (must come after the health check endpoint)
+app.use('/api/health-summary', healthSummaryRouter);
+app.use('/api/diet', dietRouter);
+
+// Health check endpoint (simple status check)
+app.get('/api/health-check', async (req, res) => {
   try {
     const result = await pool.query('SELECT NOW()');
     res.json({

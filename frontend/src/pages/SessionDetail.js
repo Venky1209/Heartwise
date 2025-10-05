@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Line } from 'react-chartjs-2';
@@ -42,11 +42,11 @@ const SessionDetail = () => {
     try {
       setLoading(true);
       // Fetch session metadata
-      const sessionResponse = await axios.get(`http://localhost:5001/api/sessions/${sessionId}`);
+      const sessionResponse = await api.get(`/sessions/${sessionId}`);
       setSession(sessionResponse.data);
 
       // Fetch ECG data
-      const ecgResponse = await axios.get(`http://localhost:5001/api/ecg-data/${sessionId}`);
+      const ecgResponse = await api.get(`/ecg-data/${sessionId}`);
       setEcgData(ecgResponse.data);
       setError(null);
     } catch (err) {

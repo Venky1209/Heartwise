@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,7 +16,7 @@ const Sessions = () => {
   const fetchSessions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5001/api/sessions');
+      const response = await api.get('/sessions');
       setSessions(response.data);
       setError(null);
     } catch (err) {

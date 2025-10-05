@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -13,8 +13,19 @@ import Sessions from './pages/Sessions';
 import SessionDetail from './pages/SessionDetail';
 import Devices from './pages/Devices';
 import Analysis from './pages/Analysis';
+import ECGReport from './pages/ECGReport';
+import WeeklySummary from './pages/WeeklySummaryEnhanced';
+import DietRecommendations from './pages/DietRecommendations';
+import AIDietRecommendations from './pages/AIDietRecommendations';
+import Profile from './pages/Profile';
+import ProfileComplete from './pages/ProfileComplete';
+
+// Auth Pages
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 // Context
+import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 
 // Styles
@@ -34,47 +45,60 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SocketProvider>
-        <Router>
-          <div className="App">
-            <Layout>
+      <AuthProvider>
+        <SocketProvider>
+          <Router>
+            <div className="App">
               <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/patients" element={<Patients />} />
-                <Route path="/patients/:id" element={<PatientDetail />} />
-                <Route path="/monitor" element={<ECGMonitor />} />
-                <Route path="/monitor/:sessionId" element={<ECGMonitor />} />
-                <Route path="/sessions" element={<Sessions />} />
-                <Route path="/sessions/:id" element={<SessionDetail />} />
-                <Route path="/devices" element={<Devices />} />
-                <Route path="/analysis" element={<Analysis />} />
-                <Route path="/analysis/:sessionId" element={<Analysis />} />
+                {/* Public Routes - Auth */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile/complete" element={<ProfileComplete />} />
+                
+                {/* Protected Routes - Main App */}
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="patients" element={<Patients />} />
+                  <Route path="patients/:id" element={<PatientDetail />} />
+                  <Route path="monitor" element={<ECGMonitor />} />
+                  <Route path="monitor/:sessionId" element={<ECGMonitor />} />
+                  <Route path="sessions" element={<Sessions />} />
+                  <Route path="sessions/:id" element={<SessionDetail />} />
+                  <Route path="devices" element={<Devices />} />
+                  <Route path="analysis" element={<Analysis />} />
+                  <Route path="analysis/:sessionId" element={<Analysis />} />
+                  <Route path="report/:sessionId" element={<ECGReport />} />
+                  <Route path="weekly-summary" element={<WeeklySummary />} />
+                  <Route path="diet" element={<DietRecommendations />} />
+                  <Route path="ai-diet" element={<AIDietRecommendations />} />
+                </Route>
               </Routes>
-            </Layout>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
                   style: {
-                    background: '#10b981',
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-                error: {
-                  style: {
-                    background: '#ef4444',
+                  success: {
+                    style: {
+                      background: '#10b981',
+                    },
                   },
-                },
-              }}
-            />
-          </div>
-        </Router>
-      </SocketProvider>
+                  error: {
+                    style: {
+                      background: '#ef4444',
+                    },
+                  },
+                }}
+              />
+            </div>
+          </Router>
+        </SocketProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

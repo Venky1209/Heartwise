@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { format } from 'date-fns';
 import {
   SignalIcon,
@@ -24,7 +24,7 @@ const Devices = () => {
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5001/api/devices');
+      const response = await api.get('/devices');
       setDevices(response.data || []);
       setError(null);
     } catch (err) {

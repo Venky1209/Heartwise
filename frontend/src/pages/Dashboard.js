@@ -9,7 +9,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { useSocket } from '../context/SocketContext';
-import axios from 'axios';
+import api from '../utils/api';
 
 const Dashboard = () => {
   const { isConnected, deviceStatus, realtimeECGData } = useSocket();
@@ -20,12 +20,12 @@ const Dashboard = () => {
     recentAnalyses: 0
   });
   const [recentSessions, setRecentSessions] = useState([]);
-  const [systemHealth, setSystemHealth] = useState({});
+  const [systemHealth, setSystemHealth] = useState({ status: 'checking' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchSystemHealth, 30000); // Update every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -36,24 +36,31 @@ const Dashboard = () => {
       
       // Fetch stats in parallel
       const [patientsRes, sessionsRes, devicesRes, analysisRes] = await Promise.all([
-        axios.get('/api/patients?limit=1'),
-        axios.get('/api/sessions?limit=5'),
-        axios.get('/api/devices'),
-        axios.get('/api/analysis?limit=1')
+        api.get('/patients?limit=1'),
+        api.get('/sessions?limit=10'),
+        api.get('/devices'),
+        api.get('/analysis?limit=20')
       ]);
+
+      // Count active (non-completed) sessions
+      const allSessions = sessionsRes.data || [];
+      const activeSessions = allSessions.filter(s => !s.is_completed);
 
       setStats({
         totalPatients: patientsRes.data.pagination?.totalPatients || 0,
-        activeSessions: sessionsRes.data.filter(s => !s.is_completed).length,
-        totalDevices: devicesRes.data.length,
-        recentAnalyses: analysisRes.data.length
+        activeSessions: activeSessions.length,
+        totalDevices: devicesRes.data?.length || 0,
+        recentAnalyses: analysisRes.data?.length || 0
       });
 
-      setRecentSessions(sessionsRes.data.slice(0, 5));
+      // Set recent sessions (limit to 5 for display)
+      setRecentSessions(allSessions.slice(0, 5));
       
+      // Check system health
       await fetchSystemHealth();
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setSystemHealth({ status: 'unhealthy', error: error.message });
     } finally {
       setLoading(false);
     }
@@ -61,8 +68,24 @@ const Dashboard = () => {
 
   const fetchSystemHealth = async () => {
     try {
-      const response = await axios.get('/api/health');
-      setSystemHealth(response.data);
+      // Check backend health
+      const backendHealth = await api.get('/health-check');
+      
+      // Check ML service health
+      let mlServiceHealthy = false;
+      try {
+        await api.get('/analysis');
+        mlServiceHealthy = true;
+      } catch (mlError) {
+        console.warn('ML service may be unavailable:', mlError.message);
+      }
+
+      setSystemHealth({
+        status: backendHealth.status === 200 ? 'healthy' : 'degraded',
+        backend: 'operational',
+        mlService: mlServiceHealthy ? 'operational' : 'degraded',
+        database: backendHealth.data?.database || 'unknown'
+      });
     } catch (error) {
       console.error('Error fetching system health:', error);
       setSystemHealth({ status: 'unhealthy', error: error.message });
@@ -117,11 +140,29 @@ const Dashboard = () => {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-gray-600">
-          Welcome to HeartWise ECG Monitoring System - Professional healthcare at home
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-gray-600">
+            Welcome to HeartWise ECG Monitoring System - Professional healthcare at home
+          </p>
+        </div>
+        <button
+          onClick={fetchDashboardData}
+          disabled={loading}
+          className="btn-secondary flex items-center space-x-2"
+        >
+          <svg 
+            className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
+        </button>
       </div>
 
       {/* System Status Alert */}

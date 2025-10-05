@@ -434,31 +434,60 @@ router.post('/hybrid/:sessionId', async (req, res) => {
     });
 
     // Step 3: Prepare data for ML Service (Enhanced AI Analysis)
-    const ecgData = ecgDataResult.rows.map(row => ({
-      timestamp_ms: row.timestamp_ms,
-      voltage_mv: row.voltage_mv || 0
-    }));
+    // ML service expects array of numbers (voltage values only), not objects
+    let ecgData = ecgDataResult.rows.map(row => row.voltage_mv || 0);
+    
+    // Downsample if dataset is too large (>2500 points) to prevent timeout
+    const MAX_ML_POINTS = 2500;
+    if (ecgData.length > MAX_ML_POINTS) {
+      console.log(`⚡ Downsampling ${ecgData.length} points to ${MAX_ML_POINTS} for ML analysis`);
+      const step = Math.floor(ecgData.length / MAX_ML_POINTS);
+      ecgData = ecgData.filter((_, index) => index % step === 0).slice(0, MAX_ML_POINTS);
+      console.log(`✓ Downsampled to ${ecgData.length} points`);
+    }
 
     // Step 4: Call ML Service for Advanced AI-Powered Analysis
     let mlAnalysis = null;
     try {
       console.log('Calling ML service for AI diagnosis...');
+      console.log(`Sending ${ecgData.length} voltage values to ML service`);
+      console.log('🔍 Sending HRV to ML:', JSON.stringify(ruleBasedAnalysis.metrics?.hrv));
       const mlResponse = await axios.post(`${ML_SERVICE_URL}/analyze`, {
-        sessionId: sessionId,
-        ecgData: ecgData,
-        sampleRate: 250
+        ecg_data: ecgData,  // Array of voltage values (numbers)
+        sample_rate: 250,
+        // Send pre-calculated metrics for more accurate classification
+        heart_rate: ruleBasedAnalysis.metrics?.heartRate,
+        qrs_count: ruleBasedAnalysis.metrics?.rPeakCount,
+        hrv: ruleBasedAnalysis.metrics?.hrv
       }, {
-        timeout: 30000, // 30 second timeout
+        timeout: 90000, // 90 second timeout for ML analysis (enhanced analyzer is slower)
         headers: {
           'Content-Type': 'application/json'
         },
-        family: 4 // Force IPv4 to avoid ::1 (IPv6) connection issues
+        family: 4, // Force IPv4 to avoid ::1 (IPv6) connection issues
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       });
       
       mlAnalysis = mlResponse.data;
+      
+      // Map ML service response fields to expected format
+      mlAnalysis.classification = mlAnalysis.diagnosis || mlAnalysis.classification || 'Unknown';
+      mlAnalysis.risk_level = mlAnalysis.severity || mlAnalysis.risk_level || 'unknown';
+      mlAnalysis.details = {
+        // ALWAYS use backend's QRS-based heart rate (more accurate than ML's feature extraction)
+        heartRate: ruleBasedAnalysis.metrics?.heartRate || mlAnalysis.heart_rate_bpm || 0,
+        rhythm: mlAnalysis.classification,
+        qrsCount: ruleBasedAnalysis.metrics?.rPeakCount || 0,
+        hrv: mlAnalysis.hrv || ruleBasedAnalysis.metrics?.hrv || {},
+        signalQuality: ruleBasedAnalysis.metrics?.signalQuality || {},
+        abnormalities: []
+      };
+      
       console.log('✓ AI Analysis completed:', {
         classification: mlAnalysis.classification,
         confidence: mlAnalysis.confidence,
+        method: mlAnalysis.method || 'ensemble',
         riskLevel: mlAnalysis.risk_level,
         heartRate: mlAnalysis.details?.heartRate
       });
@@ -544,8 +573,10 @@ router.post('/hybrid/:sessionId', async (req, res) => {
       // Analysis metadata
       metadata: {
         mlServiceAvailable: mlAnalysis.classification !== 'Unknown',
-        analysisEngine: mlAnalysis.analysis_type || 'hybrid',
-        modelVersion: 'v1.0-ai-enhanced'
+        analysisEngine: mlAnalysis.method || mlAnalysis.analysis_type || 'hybrid',
+        analysisMethod: mlAnalysis.method || 'rule_based', // deep_learning or rule_based
+        modelVersion: 'v1.0-ai-enhanced',
+        deepLearningUsed: mlAnalysis.method === 'deep_learning'
       }
     };
 

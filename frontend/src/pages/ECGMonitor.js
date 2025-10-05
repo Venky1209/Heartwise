@@ -60,7 +60,7 @@ const ECGMonitor = () => {
 
   const fetchPatients = async () => {
     try {
-      const response = await api.get('/api/patients?limit=50');
+      const response = await api.get('/patients?limit=50');
       setPatients(response.data.patients || []);
     } catch (error) {
       console.error('Error fetching patients:', error);
@@ -70,7 +70,7 @@ const ECGMonitor = () => {
 
   const fetchDevices = async () => {
     try {
-      const response = await api.get('/api/devices');
+      const response = await api.get('/devices');
       setDevices(response.data || []);
     } catch (error) {
       console.error('Error fetching devices:', error);
@@ -80,7 +80,7 @@ const ECGMonitor = () => {
 
   const fetchSessionDetails = async (id) => {
     try {
-      const response = await api.get(`/api/sessions/${id}`);
+      const response = await api.get(`/sessions/${id}`);
       const session = response.data;
       setCurrentSession(session);
       
@@ -120,7 +120,7 @@ const ECGMonitor = () => {
         sampleRate: 250
       };
 
-      const response = await api.post('/api/sessions', sessionData);
+      const response = await api.post('/sessions', sessionData);
       const newSession = response.data.session;
       
       setCurrentSession(newSession);
@@ -144,7 +144,7 @@ const ECGMonitor = () => {
     try {
       setLoading(true);
       
-      await api.put(`/api/sessions/${currentSession.id}`, {
+      await api.put(`/sessions/${currentSession.id}`, {
         isCompleted: true,
         endTime: new Date().toISOString(),
         notes: sessionNotes

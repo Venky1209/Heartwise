@@ -13,21 +13,29 @@ class ECGAnalyzer {
    * Returns R-peak indices in the ECG signal
    */
   detectQRS(signal) {
-    // Filter out NaN and Infinity values
-    const cleanSignal = signal.filter(val => !isNaN(val) && isFinite(val));
+    // Convert to numbers and filter out NaN and Infinity values
+    const cleanSignal = signal
+      .map(val => typeof val === 'string' ? parseFloat(val) : Number(val))
+      .filter(val => !isNaN(val) && isFinite(val));
     
     if (cleanSignal.length < 100) {
       console.log('❌ Insufficient valid data points after cleaning');
       return [];
     }
     
-    console.log(`\n🔬 Starting QRS Detection:`);
+    // **IMPORTANT**: Remove DC offset first!
+    const mean = cleanSignal.reduce((a,b) => a+b, 0) / cleanSignal.length;
+    const dcRemoved = cleanSignal.map(x => x - mean);
+    
+    console.log(`
+🔬 Starting QRS Detection:`);
     console.log(`  Input signal length: ${cleanSignal.length} samples (${signal.length - cleanSignal.length} invalid values removed)`);
-    console.log(`  Signal range: ${Math.min(...cleanSignal).toFixed(2)} to ${Math.max(...cleanSignal).toFixed(2)} mV`);
-    console.log(`  Signal mean: ${(cleanSignal.reduce((a,b) => a+b, 0) / cleanSignal.length).toFixed(2)} mV`);
+    console.log(`  Original signal range: ${Math.min(...cleanSignal).toFixed(2)} to ${Math.max(...cleanSignal).toFixed(2)} mV`);
+    console.log(`  Signal mean (DC offset): ${mean.toFixed(2)} mV - REMOVED`);
+    console.log(`  After DC removal: ${Math.min(...dcRemoved).toFixed(2)} to ${Math.max(...dcRemoved).toFixed(2)} mV`);
     
     // Step 1: Bandpass filter (5-15 Hz)
-    const filtered = this.bandpassFilter(cleanSignal);
+    const filtered = this.bandpassFilter(dcRemoved);
     console.log(`  ✓ Bandpass filtered`);
     
     // Step 2: Derivative (emphasize QRS slope)
@@ -43,7 +51,7 @@ class ECGAnalyzer {
     console.log(`  ✓ Moving window integration complete`);
     
     // Step 5: Adaptive thresholding to find R-peaks
-    const rPeaks = this.findRPeaks(integrated, cleanSignal);
+    const rPeaks = this.findRPeaks(integrated, dcRemoved);
     
     return rPeaks;
   }
@@ -165,14 +173,15 @@ class ECGAnalyzer {
   }
 
   /**
-   * Calculate adaptive threshold (15% of max for better AD8232 detection)
+   * Calculate adaptive threshold (10% of max for better sensitivity)
    */
   calculateAdaptiveThreshold(signal) {
     const max = Math.max(...signal);
     const min = Math.min(...signal);
     const range = max - min;
-    // Use 15% of range above baseline for maximum sensitivity with noisy AD8232 signals
-    return min + (range * 0.15);
+    // Use 10% of range above baseline for better sensitivity
+    // Lower threshold = more sensitive = finds more peaks
+    return min + (range * 0.10);
   }
 
   /**
@@ -220,8 +229,14 @@ class ECGAnalyzer {
    * Calculate Heart Rate Variability (HRV) metrics
    */
   calculateHRV(rrIntervals) {
+    console.log('🔍 calculateHRV called with', rrIntervals.length, 'intervals');
+    
     if (rrIntervals.length < 2) {
-      return { sdnn: 0, rmssd: 0, pnn50: 0 };
+      console.log('⚠️ Too few RR intervals for HRV calculation');
+      return { 
+        SDNN: 0, RMSSD: 0, pNN50: 0,
+        sdnn: 0, rmssd: 0, pnn50: 0 
+      };
     }
 
     // SDNN - Standard deviation of NN intervals
@@ -245,7 +260,18 @@ class ECGAnalyzer {
     }
     const pnn50 = (nn50Count / (rrIntervals.length - 1)) * 100;
 
-    return { sdnn, rmssd, pnn50 };
+    console.log('✅ HRV calculated:', { SDNN: sdnn, RMSSD: rmssd, pNN50: pnn50 });
+
+    // Return with uppercase keys for consistency with frontend/database
+    return { 
+      SDNN: sdnn, 
+      RMSSD: rmssd, 
+      pNN50: pnn50,
+      // Also include lowercase for backward compatibility
+      sdnn, 
+      rmssd, 
+      pnn50 
+    };
   }
 
   /**
@@ -340,8 +366,8 @@ class ECGAnalyzer {
       // Detect arrhythmias
       const arrhythmias = this.detectArrhythmias(rrIntervals, heartRate);
 
-      // Calculate signal quality
-      const signalQuality = this.assessSignalQuality(signal);
+      // Calculate signal quality (using actual R-peak count for better assessment)
+      const signalQuality = this.assessSignalQuality(signal, rPeaks.length, rrIntervals);
 
       return {
         success: true,
@@ -368,10 +394,39 @@ class ECGAnalyzer {
   }
 
   /**
-   * Assess signal quality
+   * Assess signal quality based on QRS detection and signal characteristics
    */
-  assessSignalQuality(signal) {
-    // Calculate signal-to-noise ratio (simplified)
+  assessSignalQuality(signal, qrsCount, rrIntervals) {
+    // If we have QRS detection info, use it for better assessment
+    if (typeof qrsCount !== 'undefined' && qrsCount !== null) {
+      const duration = signal.length / this.samplingRate; // seconds
+      const expectedBeats = Math.floor((duration / 60) * 70); // Assuming ~70 BPM average
+      
+      // If we detected reasonable number of beats, signal is good
+      if (qrsCount >= expectedBeats * 0.5 && qrsCount > 0) {
+        const regularityScore = rrIntervals && rrIntervals.length > 2 ? 
+          this.calculateRegularity(rrIntervals) : 0;
+        
+        let score = 70; // Base score for detected QRS
+        if (qrsCount >= expectedBeats * 0.8) score = 85;
+        if (regularityScore > 0.8) score += 10;
+        
+        return { 
+          score: Math.min(100, score), 
+          status: score > 80 ? 'Good' : 'Fair'
+        };
+      }
+      
+      // Few or no beats detected = poor quality
+      if (qrsCount === 0) {
+        return { score: 0, status: 'Poor - No heartbeats detected' };
+      }
+      
+      // Some beats but too few
+      return { score: 40, status: 'Fair - Weak signal' };
+    }
+    
+    // Fallback to statistical assessment
     const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
     const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / signal.length;
     const stdDev = Math.sqrt(variance);
@@ -386,7 +441,7 @@ class ECGAnalyzer {
       return { score: 30, status: 'Poor - Noisy signal' };
     }
 
-    // Good signal
+    // Good signal based on variance
     const score = Math.min(100, Math.max(0, 100 - (Math.abs(stdDev - 100) / 5)));
     
     let status;
@@ -396,6 +451,20 @@ class ECGAnalyzer {
     else status = 'Poor';
 
     return { score: Math.round(score), status };
+  }
+  
+  /**
+   * Calculate rhythm regularity (0-1 scale)
+   */
+  calculateRegularity(rrIntervals) {
+    if (rrIntervals.length < 2) return 0;
+    
+    const mean = rrIntervals.reduce((a, b) => a + b, 0) / rrIntervals.length;
+    const variance = rrIntervals.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / rrIntervals.length;
+    const coefficientOfVariation = Math.sqrt(variance) / mean;
+    
+    // Low CV = more regular = higher score
+    return Math.max(0, 1 - (coefficientOfVariation * 2));
   }
 }
 

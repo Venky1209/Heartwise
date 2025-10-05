@@ -21,7 +21,12 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001', {
+    // Socket.IO connects to the root URL, not /api
+    const socketUrl = process.env.REACT_APP_BACKEND_URL 
+      ? process.env.REACT_APP_BACKEND_URL.replace('/api', '')
+      : 'http://localhost:5001';
+      
+    const newSocket = io(socketUrl, {
       transports: ['websocket'],
       upgrade: false,
     });

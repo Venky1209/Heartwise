@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -8,16 +8,26 @@ import {
   HeartIcon,
   Cog6ToothIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  UserCircleIcon,
+  ArrowRightOnRectangleIcon,
+  CalendarDaysIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, loading } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'ECG Monitor', href: '/monitor', icon: HeartIcon },
+    { name: 'Weekly Summary', href: '/weekly-summary', icon: CalendarDaysIcon },
+    { name: 'Diet Plan', href: '/ai-diet', icon: SparklesIcon },
     { name: 'Patients', href: '/patients', icon: UsersIcon },
     { name: 'Sessions', href: '/sessions', icon: ChartBarIcon },
     { name: 'Devices', href: '/devices', icon: CpuChipIcon },
@@ -27,6 +37,28 @@ const Layout = ({ children }) => {
   const isCurrentPath = (path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
@@ -135,12 +167,55 @@ const Layout = ({ children }) => {
                 </div>
               </div>
             </div>
-            <div className="ml-4 flex items-center md:ml-6">
-              <div className="flex items-center">
-                <div className="flex items-center space-x-2">
-                  <div className="status-light online"></div>
-                  <span className="text-sm text-gray-600">System Online</span>
-                </div>
+            <div className="ml-4 flex items-center md:ml-6 space-x-4">
+              {/* Connection Status */}
+              <div className="flex items-center space-x-2">
+                <div className="status-light online"></div>
+                <span className="text-sm text-gray-600">System Online</span>
+              </div>
+
+              {/* User Profile Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg px-3 py-2 transition"
+                >
+                  <UserCircleIcon className="h-8 w-8" />
+                  <div className="hidden md:block text-left">
+                    <p className="text-sm font-medium">{user?.firstName || user?.email}</p>
+                    <p className="text-xs text-gray-500">
+                      {user?.subscriptionTier === 'lifetime' ? 'Lifetime Member' : 'Member'}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <UserCircleIcon className="h-5 w-5 mr-2" />
+                        My Profile
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <div className="flex items-center">
+                        <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                        Logout
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -150,7 +225,7 @@ const Layout = ({ children }) => {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              {children}
+              <Outlet />
             </div>
           </div>
         </main>

@@ -67,7 +67,7 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
       },
       title: {
         display: true,
-        text: 'Real-Time ECG Signal (25 mm/s)',
+        text: 'Real-Time ECG Signal (15-Second View)',
         color: '#374151',
         font: {
           size: 16,
@@ -89,7 +89,7 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         type: 'time',
         time: {
           unit: 'second',
-          stepSize: 0.2, // 200ms intervals (1 large box on ECG paper)
+          stepSize: 0.5, // 500ms intervals for better spacing
           displayFormats: {
             second: 'HH:mm:ss',
             millisecond: 'HH:mm:ss.SSS',
@@ -101,10 +101,10 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         max: xAxisRange.max,
         title: {
           display: true,
-          text: 'Time (Large Box = 200ms, Small Box = 40ms)',
+          text: 'Time (showing 15 seconds of continuous ECG)',
           color: '#6b7280',
           font: {
-            size: 11,
+            size: 12,
           },
         },
         grid: {
@@ -147,7 +147,7 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
           },
         },
         ticks: {
-          maxTicksLimit: 15,
+          maxTicksLimit: 20,
           color: '#6b7280',
           autoSkip: false,
           callback: function(value, index, ticks) {
@@ -228,9 +228,9 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
       console.log('🔍 Max voltage:', Math.max(...realtimeECGData.map(p => p.voltage)));
       
       const now = Date.now();
-      const timeWindow = 10000; // Show last 10 seconds (like ECG paper scrolling)
+      const timeWindow = 15000; // Show last 15 seconds (expanded for better visibility)
       
-      // Filter and map data using display time - keep only last 10 seconds
+      // Filter and map data using display time - keep only last 15 seconds
       const filteredData = realtimeECGData
         .filter(point => {
           // Use displayTime for filtering

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { format } from 'date-fns';
 import {
   HeartIcon,
@@ -30,7 +30,7 @@ const Analysis = () => {
 
   const fetchSessions = async () => {
     try {
-      const response = await axios.get('http://localhost:5001/api/sessions');
+      const response = await api.get('/sessions');
       setSessions(response.data || []);
     } catch (err) {
       console.error('Error fetching sessions:', err);
@@ -42,11 +42,11 @@ const Analysis = () => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.post(`http://localhost:5001/api/analysis/hybrid/${id}`);
+      const response = await api.post(`/analysis/hybrid/${id}`);
       setAnalysisResults(response.data.analysis);
       
       // Also fetch session details
-      const sessionResponse = await axios.get(`http://localhost:5001/api/sessions/${id}`);
+      const sessionResponse = await api.get(`/sessions/${id}`);
       setSelectedSession(sessionResponse.data);
       
     } catch (err) {
@@ -187,14 +187,23 @@ const Analysis = () => {
   // Analysis results view
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Header */}
+      {/* Header with Actions */}
       <div className="mb-8">
-        <button
-          onClick={() => navigate('/analysis')}
-          className="mb-4 text-blue-600 hover:text-blue-800 font-medium"
-        >
-          ← Back to Sessions
-        </button>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate('/analysis')}
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            ← Back to Sessions
+          </button>
+          <button
+            onClick={() => navigate(`/report/${sessionId}`)}
+            className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg transform hover:scale-105 transition-all"
+          >
+            <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
+            View Professional Report
+          </button>
+        </div>
         <h1 className="text-3xl font-bold text-gray-900">ECG Analysis Results</h1>
         {selectedSession && (
           <p className="mt-2 text-gray-600">
@@ -251,9 +260,23 @@ const Analysis = () => {
 
       {/* ML Classification */}
       <div className="medical-card">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          AI Classification
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            AI Classification
+          </h2>
+          {/* Method Badge */}
+          {analysisResults.metadata?.analysisMethod && (
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              analysisResults.metadata.analysisMethod === 'deep_learning' 
+                ? 'bg-purple-100 text-purple-800'
+                : 'bg-blue-100 text-blue-800'
+            }`}>
+              {analysisResults.metadata.analysisMethod === 'deep_learning' 
+                ? '🧠 Deep Learning'
+                : '📊 Rule-Based'}
+            </span>
+          )}
+        </div>
         
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
           <div className="flex items-center justify-between">
@@ -274,6 +297,15 @@ const Analysis = () => {
               </p>
             </div>
           </div>
+          
+          {/* Show if Deep Learning was used */}
+          {analysisResults.metadata?.deepLearningUsed && (
+            <div className="mt-4 pt-4 border-t border-purple-200">
+              <p className="text-sm text-purple-700">
+                ✨ This diagnosis was made using our advanced 1D CNN deep learning model
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -328,7 +360,7 @@ const Analysis = () => {
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">SDNN</p>
             <p className="text-xl font-bold text-gray-900">
-              {Math.round(analysisResults.basicMetrics.hrv.sdnn || 0)} ms
+              {Math.round(analysisResults.basicMetrics.hrv.SDNN || analysisResults.basicMetrics.hrv.sdnn || 0)} ms
             </p>
             <p className="text-xs text-gray-500 mt-1">Standard Deviation</p>
           </div>
@@ -336,7 +368,7 @@ const Analysis = () => {
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">RMSSD</p>
             <p className="text-xl font-bold text-gray-900">
-              {Math.round(analysisResults.basicMetrics.hrv.rmssd || 0)} ms
+              {Math.round(analysisResults.basicMetrics.hrv.RMSSD || analysisResults.basicMetrics.hrv.rmssd || 0)} ms
             </p>
             <p className="text-xs text-gray-500 mt-1">Root Mean Square</p>
           </div>
@@ -344,7 +376,7 @@ const Analysis = () => {
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">pNN50</p>
             <p className="text-xl font-bold text-gray-900">
-              {Math.round(analysisResults.basicMetrics.hrv.pnn50 || 0)}%
+              {Math.round(analysisResults.basicMetrics.hrv.pNN50 || analysisResults.basicMetrics.hrv.pnn50 || 0)}%
             </p>
             <p className="text-xs text-gray-500 mt-1">Successive Differences</p>
           </div>
