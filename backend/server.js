@@ -18,6 +18,9 @@ const { router: authRouter } = require('./routes/auth');
 const profileRouter = require('./routes/profile');
 const healthSummaryRouter = require('./routes/healthSummary');
 const dietRouter = require('./routes/diet');
+const riskRouter = require('./routes/risk');
+const doctorRouter = require('./routes/doctor');
+const chatbotRouter = require('./routes/chatbot');
 
 // Environment configuration
 require('dotenv').config();
@@ -76,6 +79,7 @@ authRouter.initializePool(pool);
 profileRouter.initializePool(pool);
 healthSummaryRouter.initializePool(pool);
 dietRouter.initializePool(pool);
+doctorRouter.initializePool(pool);
 
 // Mount routes
 app.use('/api/auth', authRouter);
@@ -85,6 +89,9 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/ecg-data', ecgDataRouter);
 app.use('/api/devices', devicesRouter);
 app.use('/api/analysis', analysisRouter);
+app.use('/api/risk', riskRouter);  // Risk scoring routes
+app.use('/api/doctor', doctorRouter); // Doctor/healthcare provider routes
+app.use('/api/chat', chatbotRouter); // AI Chatbot routes
 
 // Health and Diet routes (must come after the health check endpoint)
 app.use('/api/health-summary', healthSummaryRouter);

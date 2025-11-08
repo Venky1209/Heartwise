@@ -180,9 +180,68 @@ def get_models():
         'dl_model_available': DL_MODEL_AVAILABLE,
         'ensemble_available': analyzer is not None,
         'diet_ai_available': True,
+        'risk_scoring_available': True,
         'models_loading': MODELS_LOADING,
-        'message': 'Full service with ECG analysis and AI diet recommendations'
+        'message': 'Full service with ECG analysis, AI diet recommendations, and risk scoring'
     })
+
+
+@app.route('/risk/calculate', methods=['POST'])
+def calculate_risk_score():
+    """
+    Calculate cardiac risk score
+    
+    Expected JSON body:
+    {
+        "demographics": {
+            "age": 58,
+            "gender": "male",
+            "ethnicity": "caucasian"
+        },
+        "ecg_metrics": {
+            "resting_hr": 85,
+            "hrv_sdnn": 35,
+            "arrhythmia_episodes_30days": 8,
+            "pvc_count_24h": 450,
+            "afib_detected": false
+        },
+        "lifestyle": {
+            "smoking_status": "never",
+            "exercise_minutes_per_week": 150,
+            "bmi": 26.5,
+            "alcohol_drinks_per_week": 3,
+            "diet_quality_score": 65
+        },
+        "medical_history": {
+            "hypertension": true,
+            "bp_controlled": true,
+            "diabetes": false,
+            "ldl_cholesterol": 120,
+            "previous_heart_attack": false,
+            "family_history_heart_disease": true
+        }
+    }
+    """
+    try:
+        from risk_scorer import calculate_user_risk
+        
+        user_data = request.json
+        
+        if not user_data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        logger.info(f"Calculating risk score for user data")
+        
+        # Calculate risk score
+        risk_assessment = calculate_user_risk(user_data)
+        
+        logger.info(f"Risk score calculated: {risk_assessment['overall_score']}/100 ({risk_assessment['risk_level']})")
+        
+        return jsonify(risk_assessment)
+        
+    except Exception as e:
+        logger.error(f"Error calculating risk score: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/diet/recommend', methods=['POST'])
@@ -216,6 +275,139 @@ def generate_diet_recommendations():
         
     except Exception as e:
         logger.error(f"Error generating diet recommendations: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/chat/context', methods=['POST'])
+def get_chat_context():
+    """
+    Get RAG context for chatbot query
+    
+    Expected JSON body:
+    {
+        "query": "user question",
+        "user_id": 123
+    }
+    """
+    try:
+        from rag_service import get_rag_service
+        
+        data = request.json
+        query = data.get('query', '')
+        user_id = data.get('user_id')
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        # Get RAG service
+        rag = get_rag_service()
+        
+        # Get augmented context
+        context = rag.get_augmented_context(query, user_id=str(user_id) if user_id else None)
+        
+        # Get search results for debugging
+        results = rag.search_context(query, n_results=5)
+        
+        return jsonify({
+            'context': context,
+            'results': results,
+            'stats': rag.get_stats()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting chat context: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/rag/add_ecg', methods=['POST'])
+def add_ecg_to_rag():
+    """
+    Add ECG analysis to RAG knowledge base
+    
+    Expected JSON body:
+    {
+        "session_id": "uuid",
+        "analysis_data": {...}
+    }
+    """
+    try:
+        from rag_service import get_rag_service
+        
+        data = request.json
+        session_id = data.get('session_id')
+        analysis_data = data.get('analysis_data')
+        
+        if not session_id or not analysis_data:
+            return jsonify({'error': 'session_id and analysis_data are required'}), 400
+        
+        # Get RAG service
+        rag = get_rag_service()
+        
+        # Add to knowledge base
+        rag.add_ecg_analysis(session_id, analysis_data)
+        
+        return jsonify({
+            'success': True,
+            'message': f'ECG analysis {session_id} added to knowledge base',
+            'stats': rag.get_stats()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding ECG to RAG: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/rag/add_patient', methods=['POST'])
+def add_patient_to_rag():
+    """
+    Add patient context to RAG knowledge base
+    
+    Expected JSON body:
+    {
+        "user_id": "123",
+        "context": {...}
+    }
+    """
+    try:
+        from rag_service import get_rag_service
+        
+        data = request.json
+        user_id = data.get('user_id')
+        context = data.get('context')
+        
+        if not user_id or not context:
+            return jsonify({'error': 'user_id and context are required'}), 400
+        
+        # Get RAG service
+        rag = get_rag_service()
+        
+        # Add to knowledge base
+        rag.add_patient_context(str(user_id), context)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Patient context for {user_id} added to knowledge base',
+            'stats': rag.get_stats()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding patient to RAG: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/rag/stats', methods=['GET'])
+def get_rag_stats():
+    """Get RAG knowledge base statistics"""
+    try:
+        from rag_service import get_rag_service
+        
+        rag = get_rag_service()
+        stats = rag.get_stats()
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logger.error(f"Error getting RAG stats: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

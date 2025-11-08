@@ -1,0 +1,31 @@
+# Enhanced ML Service Requirements
+# These packages make the ECG analyzer MORE POWERFUL without training
+
+# Core (already have these)
+flask>=2.0.0
+flask-cors>=3.0.10
+numpy>=1.21.0
+scipy>=1.7.0
+
+# NEW: Advanced Signal Processing
+pywt>=1.4.1  # Wavelet analysis for better pattern detection
+
+# NEW: Statistical Analysis (for better features)
+statsmodels>=0.13.0  # Advanced statistical modeling
+
+# NEW: Pre-trained Model Support (if available)
+# These are OPTIONAL - will use if available, graceful fallback if not
+# transformers>=4.30.0  # Hugging Face pre-trained models (OPTIONAL)
+# torch>=2.0.0  # PyTorch for deep learning (OPTIONAL)
+
+# Google Gemini AI (already using)
+google-generativeai>=0.3.0
+
+# Database
+psycopg2-binary>=2.9.0
+
+# Environment
+python-dotenv>=0.19.0
+
+# Monitoring
+requests>=2.26.0

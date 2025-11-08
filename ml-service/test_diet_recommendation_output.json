@@ -1,0 +1,30 @@
+{
+  "summary": "Basic heart-healthy diet recommendations based on your profile",
+  "primary_goals": [
+    "Reduce cardiovascular risk",
+    "Maintain healthy weight",
+    "Support overall heart health"
+  ],
+  "ai_powered": false,
+  "message": "For personalized AI-powered recommendations, please configure OpenAI API key",
+  "general_tips": [
+    "Follow Mediterranean diet principles",
+    "Limit sodium to under 2000mg daily",
+    "Include omega-3 rich foods 2-3 times per week",
+    "Eat 5-7 servings of fruits and vegetables daily",
+    "Choose whole grains over refined grains",
+    "Limit saturated fats to less than 7% of total calories"
+  ],
+  "context_summary": {
+    "age": 58,
+    "bmi": 28.7,
+    "conditions_count": 5,
+    "medications_count": 2,
+    "ecg_readings_analyzed": 3,
+    "primary_concerns": [
+      "hypertension",
+      "high_cholesterol",
+      "heart_disease"
+    ]
+  }
+}

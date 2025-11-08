@@ -42,8 +42,16 @@ const Login = () => {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
-      // Redirect to intended page or dashboard
-      const from = location.state?.from?.pathname || '/dashboard';
+      // Role-based redirect
+      let redirectPath = '/dashboard';
+      if (result.user?.role === 'doctor') {
+        redirectPath = '/doctor/dashboard';
+      } else if (result.user?.role === 'admin') {
+        redirectPath = '/admin/dashboard';
+      }
+      
+      // Check if there was an intended destination
+      const from = location.state?.from?.pathname || redirectPath;
       navigate(from, { replace: true });
     } else {
       setError(result.error);

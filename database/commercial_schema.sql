@@ -14,7 +14,8 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL, -- bcrypt hash
-    activation_code VARCHAR(50) UNIQUE, -- Device activation code
+    role VARCHAR(20) DEFAULT 'patient' CHECK (role IN ('patient', 'doctor', 'admin')),
+    activation_code VARCHAR(50) UNIQUE, -- Device activation code (for patients)
     activated BOOLEAN DEFAULT FALSE,
     email_verified BOOLEAN DEFAULT FALSE,
     email_verification_token VARCHAR(100),
@@ -898,11 +899,245 @@ FROM ecg_sessions
 ORDER BY user_id, start_time DESC;
 
 -- ============================================
+-- DOCTOR/HEALTHCARE PROVIDER TABLES
+-- ============================================
+
+-- Doctor profiles (detailed professional information)
+CREATE TABLE doctor_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Professional information
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    license_number VARCHAR(100) UNIQUE NOT NULL,
+    specialization VARCHAR(100), -- Cardiologist, General Practitioner, etc.
+    
+    -- Contact information
+    phone VARCHAR(20),
+    clinic_name VARCHAR(200),
+    clinic_address TEXT,
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    
+    -- Professional details
+    years_of_experience INTEGER,
+    education TEXT,
+    certifications TEXT[],
+    
+    -- Profile
+    profile_photo_url TEXT,
+    bio TEXT,
+    consultation_fee DECIMAL(10,2),
+    
+    -- Settings
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    language VARCHAR(10) DEFAULT 'en',
+    
+    -- Verification
+    verified BOOLEAN DEFAULT FALSE,
+    verified_at TIMESTAMP WITH TIME ZONE,
+    verified_by UUID REFERENCES users(id),
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Doctor-Patient relationships
+CREATE TABLE doctor_patients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Relationship details
+    assigned_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'transferred')),
+    is_primary_doctor BOOLEAN DEFAULT TRUE,
+    
+    -- Access permissions
+    can_view_ecg BOOLEAN DEFAULT TRUE,
+    can_view_medical_history BOOLEAN DEFAULT TRUE,
+    can_prescribe BOOLEAN DEFAULT TRUE,
+    
+    -- Notes
+    assignment_notes TEXT,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(doctor_id, patient_id)
+);
+
+-- Prescriptions
+CREATE TABLE prescriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Prescription details
+    medication_name VARCHAR(200) NOT NULL,
+    dosage VARCHAR(100) NOT NULL,
+    frequency VARCHAR(100) NOT NULL, -- "Once daily", "Twice daily", etc.
+    duration VARCHAR(100), -- "30 days", "Ongoing", etc.
+    route VARCHAR(50), -- "Oral", "IV", "Topical", etc.
+    
+    -- Instructions
+    instructions TEXT NOT NULL,
+    side_effects TEXT,
+    precautions TEXT,
+    
+    -- Prescription metadata
+    diagnosis VARCHAR(200),
+    prescription_date DATE DEFAULT CURRENT_DATE,
+    start_date DATE,
+    end_date DATE,
+    refills_allowed INTEGER DEFAULT 0,
+    refills_remaining INTEGER DEFAULT 0,
+    
+    -- Status
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled', 'expired')),
+    cancelled_reason TEXT,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Doctor instructions/notes for patients
+CREATE TABLE doctor_instructions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Instruction details
+    title VARCHAR(200) NOT NULL,
+    instruction_type VARCHAR(50) CHECK (instruction_type IN ('general', 'diet', 'exercise', 'medication', 'lifestyle', 'emergency', 'follow_up')),
+    content TEXT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    
+    -- Related data
+    related_ecg_session_id UUID REFERENCES ecg_sessions(id),
+    related_prescription_id UUID REFERENCES prescriptions(id),
+    
+    -- Patient acknowledgment
+    read_by_patient BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP WITH TIME ZONE,
+    patient_response TEXT,
+    patient_response_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Validity
+    expires_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Doctor's ECG review notes
+CREATE TABLE ecg_doctor_reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ecg_session_id UUID NOT NULL REFERENCES ecg_sessions(id) ON DELETE CASCADE,
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Review details
+    review_notes TEXT NOT NULL,
+    diagnosis TEXT,
+    recommended_actions TEXT,
+    urgency_level VARCHAR(20) CHECK (urgency_level IN ('routine', 'follow_up', 'urgent', 'emergency')),
+    
+    -- Follow-up
+    requires_follow_up BOOLEAN DEFAULT FALSE,
+    follow_up_date DATE,
+    follow_up_notes TEXT,
+    
+    -- Review metadata
+    review_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(ecg_session_id, doctor_id)
+);
+
+-- Consultation appointments
+CREATE TABLE consultations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Appointment details
+    appointment_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER DEFAULT 30,
+    consultation_type VARCHAR(50) CHECK (consultation_type IN ('in_person', 'video', 'phone', 'chat')),
+    
+    -- Status
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show')),
+    cancellation_reason TEXT,
+    
+    -- Consultation details
+    chief_complaint TEXT,
+    consultation_notes TEXT,
+    diagnosis TEXT,
+    treatment_plan TEXT,
+    
+    -- Follow-up
+    follow_up_required BOOLEAN DEFAULT FALSE,
+    follow_up_date DATE,
+    
+    -- Billing
+    fee DECIMAL(10,2),
+    paid BOOLEAN DEFAULT FALSE,
+    payment_date TIMESTAMP WITH TIME ZONE,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- INDEXES FOR DOCTOR TABLES
+-- ============================================
+
+CREATE INDEX idx_doctor_profiles_user_id ON doctor_profiles(user_id);
+CREATE INDEX idx_doctor_profiles_license ON doctor_profiles(license_number);
+CREATE INDEX idx_doctor_patients_doctor ON doctor_patients(doctor_id);
+CREATE INDEX idx_doctor_patients_patient ON doctor_patients(patient_id);
+CREATE INDEX idx_doctor_patients_status ON doctor_patients(status);
+CREATE INDEX idx_prescriptions_doctor ON prescriptions(doctor_id);
+CREATE INDEX idx_prescriptions_patient ON prescriptions(patient_id);
+CREATE INDEX idx_prescriptions_status ON prescriptions(status);
+CREATE INDEX idx_prescriptions_dates ON prescriptions(start_date, end_date);
+CREATE INDEX idx_doctor_instructions_doctor ON doctor_instructions(doctor_id);
+CREATE INDEX idx_doctor_instructions_patient ON doctor_instructions(patient_id);
+CREATE INDEX idx_doctor_instructions_type ON doctor_instructions(instruction_type);
+CREATE INDEX idx_doctor_instructions_unread ON doctor_instructions(patient_id, read_by_patient) WHERE read_by_patient = FALSE;
+CREATE INDEX idx_ecg_reviews_session ON ecg_doctor_reviews(ecg_session_id);
+CREATE INDEX idx_ecg_reviews_doctor ON ecg_doctor_reviews(doctor_id);
+CREATE INDEX idx_consultations_doctor ON consultations(doctor_id);
+CREATE INDEX idx_consultations_patient ON consultations(patient_id);
+CREATE INDEX idx_consultations_date ON consultations(appointment_date);
+CREATE INDEX idx_consultations_status ON consultations(status);
+
+-- ============================================
 -- COMMENTS FOR DOCUMENTATION
 -- ============================================
 
-COMMENT ON TABLE users IS 'Primary authentication table with subscription management';
+COMMENT ON TABLE users IS 'Primary authentication table with role-based access and subscription management';
 COMMENT ON TABLE user_profiles IS 'Detailed personal information and emergency contacts';
+COMMENT ON TABLE doctor_profiles IS 'Healthcare provider professional information and credentials';
+COMMENT ON TABLE doctor_patients IS 'Doctor-patient relationships and access permissions';
+COMMENT ON TABLE prescriptions IS 'Medication prescriptions issued by doctors to patients';
+COMMENT ON TABLE doctor_instructions IS 'General instructions and guidance from doctors to patients';
+COMMENT ON TABLE ecg_doctor_reviews IS 'Doctor reviews and analysis of patient ECG sessions';
+COMMENT ON TABLE consultations IS 'Scheduled appointments between doctors and patients';
 COMMENT ON TABLE medical_history IS 'Comprehensive cardiac and general medical history';
 COMMENT ON TABLE baseline_ecgs IS 'Uploaded historical ECG reports for comparison';
 COMMENT ON TABLE ecg_comparison_results IS 'Analysis comparing current ECG with baseline';

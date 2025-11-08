@@ -1,47 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const { authenticateToken } = require('./auth');
 
 // Validation schemas
 const sessionSchema = Joi.object({
-  patientId: Joi.string().uuid().required(),
   sessionName: Joi.string().max(200).optional(),
   sampleRate: Joi.number().integer().min(100).max(1000).default(250),
   deviceId: Joi.string().max(100).optional(),
   notes: Joi.string().allow('').optional()
 });
 
-// Get all sessions
-router.get('/', async (req, res) => {
+// Get all sessions for authenticated user
+router.get('/', authenticateToken, async (req, res) => {
   try {
+    const userId = req.user.userId;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    const patientId = req.query.patientId;
-
-    let whereClause = '';
-    let queryParams = [limit, offset];
-    
-    if (patientId) {
-      whereClause = 'WHERE es.patient_id = $3';
-      queryParams.push(patientId);
-    }
 
     const query = `
       SELECT es.*, 
-        p.first_name, p.last_name,
+        up.first_name, up.last_name,
         COUNT(edp.id) as data_points_count,
         COALESCE(AVG(edp.voltage_mv), 0) as avg_voltage
       FROM ecg_sessions es
-      JOIN patients p ON es.patient_id = p.id
+      INNER JOIN user_profiles up ON es.user_id = up.user_id
       LEFT JOIN ecg_data_points edp ON es.id = edp.session_id
-      ${whereClause}
-      GROUP BY es.id, p.first_name, p.last_name
+      WHERE es.user_id = $1
+      GROUP BY es.id, up.first_name, up.last_name
       ORDER BY es.start_time DESC
-      LIMIT $1 OFFSET $2
+      LIMIT $2 OFFSET $3
     `;
     
-    const result = await req.app.locals.db.query(query, queryParams);
+    const result = await req.app.locals.db.query(query, [userId, limit, offset]);
     
     res.json(result.rows);
   } catch (error) {
@@ -50,28 +42,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get session by ID
-router.get('/:id', async (req, res) => {
+// Get session by ID for authenticated user
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
     
     const query = `
       SELECT es.*, 
-        p.first_name, p.last_name, p.date_of_birth, p.gender,
+        up.first_name, up.last_name, up.date_of_birth, up.gender,
         COUNT(edp.id) as data_points_count,
         MIN(edp.voltage_mv) as min_voltage,
         MAX(edp.voltage_mv) as max_voltage,
         AVG(edp.voltage_mv) as avg_voltage,
         d.device_name, d.firmware_version
       FROM ecg_sessions es
-      JOIN patients p ON es.patient_id = p.id
+      INNER JOIN user_profiles up ON es.user_id = up.user_id
       LEFT JOIN ecg_data_points edp ON es.id = edp.session_id
       LEFT JOIN devices d ON es.device_id = d.device_id
-      WHERE es.id = $1
-      GROUP BY es.id, p.id, d.id
+      WHERE es.id = $1 AND es.user_id = $2
+      GROUP BY es.id, up.id, d.id
     `;
     
-    const result = await req.app.locals.db.query(query, [id]);
+    const result = await req.app.locals.db.query(query, [id, userId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
@@ -95,8 +88,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new session
-router.post('/', async (req, res) => {
+// Create new session for authenticated user
+router.post('/', authenticateToken, async (req, res) => {
   try {
     console.log('📝 Session creation request body:', JSON.stringify(req.body, null, 2));
     
@@ -112,25 +105,17 @@ router.post('/', async (req, res) => {
     
     console.log('✓ Validation passed, creating session with:', value);
 
-    const { patientId, sessionName, sampleRate, deviceId, notes } = value;
-
-    // Verify patient exists
-    const patientCheck = await req.app.locals.db.query(
-      'SELECT id FROM patients WHERE id = $1', [patientId]
-    );
-    
-    if (patientCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
+    const userId = req.user.userId;
+    const { sessionName, sampleRate, deviceId, notes } = value;
 
     const query = `
-      INSERT INTO ecg_sessions (patient_id, session_name, sample_rate, device_id, notes)
+      INSERT INTO ecg_sessions (user_id, session_name, sample_rate, device_id, notes)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     
     const result = await req.app.locals.db.query(query, [
-      patientId, sessionName, sampleRate, deviceId, notes
+      userId, sessionName, sampleRate, deviceId, notes
     ]);
     
     const newSession = result.rows[0];
@@ -138,7 +123,7 @@ router.post('/', async (req, res) => {
     console.log('📝 New session created:', {
       id: newSession.id,
       deviceId: deviceId,
-      patientId: patientId
+      userId: userId
     });
     
     // Send start-recording command to ESP32 if device is connected

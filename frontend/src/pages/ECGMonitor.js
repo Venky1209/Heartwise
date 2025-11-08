@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   PlayIcon, 
   StopIcon,
-  UserIcon,
   ClockIcon,
   DevicePhoneMobileIcon,
   ExclamationTriangleIcon
@@ -12,16 +11,16 @@ import { useSocket } from '../context/SocketContext';
 import RealTimeECGChart from '../components/ECG/RealTimeECGChart';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const ECGMonitor = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { joinSession, leaveSession, isConnected, realtimeECGData, deviceStatus } = useSocket();
+  const { user } = useAuth();
   
   const [isRecording, setIsRecording] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patients, setPatients] = useState([]);
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [sessionNotes, setSessionNotes] = useState('');
@@ -29,7 +28,6 @@ const ECGMonitor = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchPatients();
     fetchDevices();
     
     if (sessionId) {
@@ -58,16 +56,6 @@ const ECGMonitor = () => {
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const fetchPatients = async () => {
-    try {
-      const response = await api.get('/patients?limit=50');
-      setPatients(response.data.patients || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('Failed to load patients');
-    }
-  };
-
   const fetchDevices = async () => {
     try {
       const response = await api.get('/devices');
@@ -84,12 +72,6 @@ const ECGMonitor = () => {
       const session = response.data;
       setCurrentSession(session);
       
-      // Find and set the patient
-      const patient = patients.find(p => p.id === session.patient_id);
-      if (patient) {
-        setSelectedPatient(patient);
-      }
-      
       setSelectedDevice(session.device_id || '');
       setSessionNotes(session.notes || '');
     } catch (error) {
@@ -99,11 +81,6 @@ const ECGMonitor = () => {
   };
 
   const startNewSession = async () => {
-    if (!selectedPatient) {
-      toast.error('Please select a patient');
-      return;
-    }
-
     if (!selectedDevice) {
       toast.error('Please select a device');
       return;
@@ -113,7 +90,6 @@ const ECGMonitor = () => {
       setLoading(true);
       
       const sessionData = {
-        patientId: selectedPatient.id,
         sessionName: `ECG Session - ${new Date().toLocaleDateString()}`,
         deviceId: selectedDevice,
         notes: sessionNotes,
@@ -231,25 +207,12 @@ const ECGMonitor = () => {
             
             {!isRecording ? (
               <div className="space-y-4">
-                {/* Patient Selection */}
-                <div>
-                  <label className="form-label">Select Patient</label>
-                  <select
-                    value={selectedPatient?.id || ''}
-                    onChange={(e) => {
-                      const patient = patients.find(p => p.id === e.target.value);
-                      setSelectedPatient(patient);
-                    }}
-                    className="form-input"
-                    disabled={loading}
-                  >
-                    <option value="">Choose a patient...</option>
-                    {patients.map(patient => (
-                      <option key={patient.id} value={patient.id}>
-                        {patient.first_name} {patient.last_name}
-                      </option>
-                    ))}
-                  </select>
+                {/* User Info Display */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-blue-900">Recording as:</p>
+                  <p className="text-lg font-semibold text-blue-700">
+                    {user?.first_name} {user?.last_name || user?.email}
+                  </p>
                 </div>
 
                 {/* Device Selection */}
@@ -295,7 +258,7 @@ const ECGMonitor = () => {
                 {/* Start Button */}
                 <button
                   onClick={startNewSession}
-                  disabled={!selectedPatient || !selectedDevice || loading || !isConnected}
+                  disabled={!selectedDevice || loading || !isConnected}
                   className="w-full btn-success flex items-center justify-center"
                 >
                   <PlayIcon className="h-5 w-5 mr-2" />
@@ -305,12 +268,11 @@ const ECGMonitor = () => {
             ) : (
               <div className="space-y-4">
                 {/* Current Session Info */}
-                {currentSession && selectedPatient && (
+                {currentSession && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="flex items-center mb-2">
-                      <UserIcon className="h-5 w-5 text-green-600 mr-2" />
                       <span className="font-medium text-green-800">
-                        {selectedPatient.first_name} {selectedPatient.last_name}
+                        {user?.first_name} {user?.last_name || user?.email}
                       </span>
                     </div>
                     <div className="flex items-center mb-2">

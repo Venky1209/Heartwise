@@ -1,17 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const Joi = require('joi');
 
-// Validation schemas
-const patientSchema = Joi.object({
-  firstName: Joi.string().min(1).max(100).required(),
-  lastName: Joi.string().min(1).max(100).required(),
-  dateOfBirth: Joi.date().required(),
-  gender: Joi.string().valid('male', 'female', 'other').required(),
-  email: Joi.string().email().optional(),
-  phone: Joi.string().max(20).optional(),
-  medicalHistory: Joi.string().optional()
+// ====================================================================
+// PATIENTS ROUTES DISABLED - System now uses user-only model
+// Each logged-in user IS the patient. No separate patient management.
+// ====================================================================
+
+// All routes return 404 or disabled message
+router.all('*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Patients API is disabled',
+    message: 'This system uses a user-only model. Each user is their own patient.'
+  });
 });
+
+module.exports = router;
 
 // Get all patients
 router.get('/', async (req, res) => {

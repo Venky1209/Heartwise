@@ -18,7 +18,10 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  FireIcon,
+  BoltIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import {
   LineChart,
@@ -32,7 +35,12 @@ import {
   Legend,
   ResponsiveContainer,
   Area,
-  AreaChart
+  AreaChart,
+  PieChart,
+  Pie,
+  Cell,
+  RadialBarChart,
+  RadialBar
 } from 'recharts';
 
 const WeeklySummary = () => {
@@ -198,6 +206,11 @@ const WeeklySummary = () => {
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 {summary.summary.totalSessions}
               </p>
+              {summary.summary.daysWithSessions > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {summary.summary.avgSessionsPerDay} sessions/day
+                </p>
+              )}
             </div>
             <ChartBarIcon className="h-12 w-12 text-blue-500" />
           </div>
@@ -208,7 +221,7 @@ const WeeklySummary = () => {
             <div>
               <p className="text-gray-600 text-sm">Avg Heart Rate</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {summary.summary.avgHeartRate ? `${Math.round(summary.summary.avgHeartRate)}` : 'N/A'}
+                {summary.summary.avgHeartRate || 'N/A'}
               </p>
               {summary.summary.avgHeartRate && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -224,14 +237,12 @@ const WeeklySummary = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">HR Range</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
+              <p className="text-2xl font-bold text-gray-900 mt-2">
                 {summary.summary.minHeartRate && summary.summary.maxHeartRate
                   ? `${summary.summary.minHeartRate} - ${summary.summary.maxHeartRate}`
                   : 'N/A'}
               </p>
-              {summary.summary.avgHeartRate && (
-                <p className="text-xs text-gray-500 mt-1">Min - Max</p>
-              )}
+              <p className="text-xs text-gray-500 mt-1">Min - Max BPM</p>
             </div>
             <ChartBarIcon className="h-12 w-12 text-purple-500" />
           </div>
@@ -242,7 +253,7 @@ const WeeklySummary = () => {
             <div>
               <p className="text-gray-600 text-sm">Avg HRV</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {summary.summary.avgHRV ? Math.round(summary.summary.avgHRV) : 'N/A'}
+                {summary.summary.avgHRV || 'N/A'}
               </p>
               {summary.summary.avgHRV && (
                 <p className="text-xs text-gray-500 mt-1">SDNN (ms)</p>
@@ -251,6 +262,66 @@ const WeeklySummary = () => {
             <ArrowTrendingUpIcon className="h-12 w-12 text-green-500" />
           </div>
         </div>
+      </div>
+
+      {/* Additional Comprehensive Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Total Duration */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-md p-6 border border-blue-200">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-blue-700 text-sm font-medium">Total Recording Time</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">
+                {Math.floor((summary.summary.totalDuration || 0) / 60)}m
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                {Math.floor((summary.summary.totalDuration || 0) / 60)} minutes across {summary.summary.daysWithSessions || 0} days
+              </p>
+            </div>
+            <ClockIcon className="h-10 w-10 text-blue-600" />
+          </div>
+        </div>
+
+        {/* Recording Quality */}
+        {summary.summary.avgSignalQuality && (
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-md p-6 border border-green-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-green-700 text-sm font-medium">Avg Signal Quality</p>
+                <p className="text-3xl font-bold text-green-900 mt-2">
+                  {Math.round(summary.summary.avgSignalQuality * 100)}%
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  Confidence: {Math.round((summary.summary.avgConfidence || 0) * 100)}%
+                </p>
+              </div>
+              <CheckCircleIcon className="h-10 w-10 text-green-600" />
+            </div>
+          </div>
+        )}
+
+        {/* Classifications Summary */}
+        {summary.summary.classificationCounts && Object.keys(summary.summary.classificationCounts).length > 0 && (
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-md p-6 border border-purple-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-purple-700 text-sm font-medium">ECG Classifications</p>
+                <div className="mt-2 space-y-1">
+                  {Object.entries(summary.summary.classificationCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([classification, count]) => (
+                      <div key={classification} className="flex justify-between items-center">
+                        <span className="text-sm text-purple-900">{classification}:</span>
+                        <span className="text-sm font-semibold text-purple-700">{count}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <DocumentTextIcon className="h-10 w-10 text-purple-600" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}
@@ -307,13 +378,221 @@ const WeeklySummary = () => {
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip />
                 <Legend />
-                <Bar yAxisId="left" dataKey="sessions" fill="#3b82f6" name="Sessions" />
-                <Bar yAxisId="right" dataKey="duration" fill="#8b5cf6" name="Duration (min)" />
+                <Bar yAxisId="left" dataKey="sessions" fill="#3b82f6" name="Sessions" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="duration" fill="#8b5cf6" name="Duration (min)" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
+
+      {/* New Enhanced Visualizations */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Health Score Gauge */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <SparklesIcon className="h-5 w-5 mr-2 text-yellow-500" />
+            Heart Health Score
+          </h3>
+          <div className="flex flex-col items-center justify-center">
+            {(() => {
+              // Calculate health score based on metrics
+              const hrScore = summary.summary.avgHeartRate >= 60 && summary.summary.avgHeartRate <= 100 ? 35 : 15;
+              const hrvScore = summary.summary.avgHRV >= 50 ? 35 : summary.summary.avgHRV >= 30 ? 20 : 10;
+              const consistencyScore = summary.summary.totalSessions >= 5 ? 30 : summary.summary.totalSessions * 6;
+              const totalScore = Math.min(100, hrScore + hrvScore + consistencyScore);
+              
+              const scoreColor = totalScore >= 80 ? '#10b981' : totalScore >= 60 ? '#f59e0b' : '#ef4444';
+              const scoreLabel = totalScore >= 80 ? 'Excellent' : totalScore >= 60 ? 'Good' : 'Needs Attention';
+              
+              return (
+                <>
+                  <div className="relative w-40 h-40">
+                    <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke={scoreColor}
+                        strokeWidth="8"
+                        strokeDasharray={`${totalScore * 2.51} 251`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <p className="text-4xl font-bold" style={{ color: scoreColor }}>
+                        {totalScore}
+                      </p>
+                      <p className="text-xs text-gray-500">out of 100</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-center">
+                    <p className="text-sm font-semibold" style={{ color: scoreColor }}>
+                      {scoreLabel}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Based on HR, HRV, and consistency
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Heart Rate Zones Distribution */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <FireIcon className="h-5 w-5 mr-2 text-orange-500" />
+            Heart Rate Zones
+          </h3>
+          {(() => {
+            // Calculate HR zones based on data
+            const zones = [
+              { name: 'Resting', value: 0, range: '<60', color: '#60a5fa' },
+              { name: 'Normal', value: 0, range: '60-100', color: '#34d399' },
+              { name: 'Elevated', value: 0, range: '100-120', color: '#fbbf24' },
+              { name: 'High', value: 0, range: '>120', color: '#f87171' }
+            ];
+
+            summary.dailyBreakdown.forEach(day => {
+              if (day.avgHeartRate) {
+                if (day.avgHeartRate < 60) zones[0].value++;
+                else if (day.avgHeartRate <= 100) zones[1].value++;
+                else if (day.avgHeartRate <= 120) zones[2].value++;
+                else zones[3].value++;
+              }
+            });
+
+            const hasData = zones.some(z => z.value > 0);
+
+            return hasData ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={zones.filter(z => z.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(entry) => `${entry.name} (${entry.value})`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {zones.filter(z => z.value > 0).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  {zones.filter(z => z.value > 0).map((zone, idx) => (
+                    <div key={idx} className="flex items-center">
+                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: zone.color }}></div>
+                      <span className="text-gray-600">{zone.range} BPM</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-48 text-gray-400">
+                <p>No heart rate data available</p>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Weekly Progress */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BoltIcon className="h-5 w-5 mr-2 text-blue-500" />
+            Weekly Progress
+          </h3>
+          <div className="space-y-4">
+            {/* Sessions Goal */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">Sessions Goal</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {summary.summary.totalSessions}/7
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (summary.summary.totalSessions / 7) * 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Recording Time Goal */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">Recording Time</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {Math.floor((summary.summary.totalDuration || 0) / 60)}/30 min
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (((summary.summary.totalDuration || 0) / 60) / 30) * 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Days Active */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">Days Active</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {summary.summary.daysWithSessions || 0}/7
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((summary.summary.daysWithSessions || 0) / 7) * 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Consistency Score */}
+            <div className="pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-500 mb-2">Consistency Score</p>
+              <div className="flex items-center">
+                <div className="flex-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`inline-block w-8 h-1 mr-1 rounded-full ${
+                        i < Math.ceil(((summary.summary.daysWithSessions || 0) / 7) * 5)
+                          ? 'bg-yellow-400'
+                          : 'bg-gray-300'
+                      }`}
+                    ></span>
+                  ))}
+                </div>
+                <span className="text-xl ml-2">
+                  {((summary.summary.daysWithSessions || 0) / 7) >= 0.8 ? '🔥' : 
+                   ((summary.summary.daysWithSessions || 0) / 7) >= 0.5 ? '⚡' : '💪'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Daily Breakdown */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">

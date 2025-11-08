@@ -1,0 +1,157 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  📊 WEEKLY ECG HEALTH SUMMARY - PREVIEW                   ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ❤️ Weekly Heart Health Summary                    👤 guganasfrr@gmail  │
+│  Comprehensive analysis of your cardiovascular health                    │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ◄ Previous Week    📅 Sep 28, 2025 - Oct 5, 2025    Next Week ►       │
+│                           Current Week                                    │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────┬────────────────┬────────────────┬────────────────┐
+│ Total Sessions │  Avg Heart Rate│   HR Range     │    Avg HRV     │
+│                │                │                │                │
+│      📊        │      ❤️        │      📈        │      📊        │
+│       7        │    85 BPM      │   72 - 98      │    45 ms       │
+│                │   72-98 BPM    │   Min - Max    │   SDNN (ms)    │
+└────────────────┴────────────────┴────────────────┴────────────────┘
+
+┌──────────────────────────────────┬──────────────────────────────────┐
+│ 📈 Heart Rate Trend              │ 📊 Heart Rate Variability (HRV) │
+│                                  │                                  │
+│   100 ┐                         │   60 ┐                          │
+│    90 ┤     /\    /\            │   50 ┤   /\    /\               │
+│    80 ┤   /    \/    \          │   40 ┤  /  \  /  \              │
+│    70 ┤  /            \         │   30 ┤ /    \/    \             │
+│    60 └──────────────────       │   20 └──────────────────         │
+│        Mon Tue Wed Thu Fri      │        Mon Tue Wed Thu Fri       │
+│                                  │                                  │
+│  ━━━ Avg HR  ┄┄┄ Max  ┄┄┄ Min  │  ━━━ HRV (SDNN ms)              │
+└──────────────────────────────────┴──────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ 📊 Daily Activity                                                       │
+│                                                                         │
+│   Sessions  ▓▓▓  ▓▓  ▓▓▓  ▓  ▓▓▓  ▓▓  ▓                              │
+│   Duration  ░░░  ░░  ░░░  ░  ░░░  ░░  ░                              │
+│             Mon  Tue  Wed Thu  Fri Sat Sun                             │
+│                                                                         │
+│   ▓ Sessions (count)    ░ Duration (minutes)                          │
+└────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════╗
+║  📄 DAILY ECG HEALTH REPORT                                            ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+│
+├─ 🟢 Monday, October 1, 2025
+│   ┌────────────────────────────────────────────────────────┐
+│   │ ✓ All readings within normal range                     │
+│   └────────────────────────────────────────────────────────┘
+│   
+│   📊 Sessions: 3  │  ❤️ Avg HR: 82 BPM  │  📈 Range: 75-88  │  📊 HRV: 48 ms
+│   
+│   ┌─ 09:30 AM - Morning Session ─────────────────────────┐
+│   │ ❤️ HR: 78 BPM  🔬 Normal Sinus Rhythm  📊 97%       │
+│   │ ⚠️ Risk: Low                         [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│   
+│   ┌─ 12:15 PM - Lunch Time Check ────────────────────────┐
+│   │ ❤️ HR: 82 BPM  🔬 Normal Sinus Rhythm  📊 95%       │
+│   │ ⚠️ Risk: Low                         [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│   
+│   ┌─ 18:45 PM - Evening Session ─────────────────────────┐
+│   │ ❤️ HR: 85 BPM  🔬 Normal Sinus Rhythm  📊 98%       │
+│   │ ⚠️ Risk: Low                         [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│
+├─ 🟡 Tuesday, October 2, 2025
+│   ┌────────────────────────────────────────────────────────┐
+│   │ ⚠️ 1 medium-risk reading detected                     │
+│   └────────────────────────────────────────────────────────┘
+│   
+│   📊 Sessions: 2  │  ❤️ Avg HR: 91 BPM  │  📈 Range: 85-97  │  📊 HRV: 42 ms
+│   
+│   ┌─ 10:00 AM - Morning Check ───────────────────────────┐
+│   │ ❤️ HR: 85 BPM  🔬 Normal Sinus Rhythm  📊 96%       │
+│   │ ⚠️ Risk: Low                         [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│   
+│   ┌─ 15:30 PM - Afternoon Session ───────────────────────┐
+│   │ ❤️ HR: 97 BPM  🔬 Tachycardia  📊 89%               │
+│   │ ⚠️ Risk: Medium                      [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│
+├─ ⚪ Wednesday, October 3, 2025
+│   ┌────────────────────────────────────────────────────────┐
+│   │ No ECG sessions recorded on this day                   │
+│   └────────────────────────────────────────────────────────┘
+│
+├─ 🟢 Thursday, October 4, 2025
+│   ┌────────────────────────────────────────────────────────┐
+│   │ ✓ All readings within normal range                     │
+│   └────────────────────────────────────────────────────────┘
+│   
+│   📊 Sessions: 1  │  ❤️ Avg HR: 80 BPM  │  📈 Range: 80-80  │  📊 HRV: 50 ms
+│   
+│   ┌─ 11:20 AM - Check-in ─────────────────────────────────┐
+│   │ ❤️ HR: 80 BPM  🔬 Normal Sinus Rhythm  📊 99%       │
+│   │ ⚠️ Risk: Low                         [View Report →] │
+│   └──────────────────────────────────────────────────────┘
+│
+└─ ... (continues for rest of week)
+
+╔════════════════════════════════════════════════════════════════════════╗
+║  💡 HEALTH INSIGHTS                                                    ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ ✓ Increase Monitoring Frequency                                        │
+│   You recorded 7 sessions this week. For better health tracking,       │
+│   aim for at least 10-14 sessions per week.                           │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ ⚠️ Elevated Heart Rate Detected                                        │
+│   Your average heart rate was higher on Tuesday. Monitor for patterns │
+│   and consult your doctor if this persists.                           │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ 📊 HRV Trending Upward                                                 │
+│   Your heart rate variability improved by 12% compared to last week.  │
+│   This is a positive indicator of cardiovascular health!              │
+└────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════╗
+║  🎯 QUICK ACTIONS                                                      ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+[📊 View All Sessions]  [❤️ Start New Recording]  [📥 Export Report]
+
+═══════════════════════════════════════════════════════════════════════════
+
+📝 KEY FEATURES:
+  ✅ Daily timeline with color-coded health status
+  ✅ Dynamic graphs showing trends (Heart Rate, HRV, Activity)
+  ✅ Detailed session cards with ML analysis results
+  ✅ Risk level indicators for each reading
+  ✅ Direct links to full ECG reports
+  ✅ Week-by-week navigation
+  ✅ Automated health insights
+  ✅ Professional medical-grade formatting
+
+🎨 COLOR LEGEND:
+  🟢 Green  = All normal, healthy readings
+  🟡 Yellow = Medium-risk readings detected
+  🔴 Red    = High-risk/critical readings  
+  ⚪ Gray   = No data recorded
+
+🚀 ACCESS: http://localhost:3000/weekly-summary
+
+═══════════════════════════════════════════════════════════════════════════

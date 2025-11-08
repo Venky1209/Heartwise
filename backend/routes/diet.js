@@ -63,19 +63,23 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
             [userId]
         );
 
-        // Get ECG timeline (last 30 days)
+        // Get ECG timeline (last 30 days) - using ecg_comparison_results which has user_id
+        // If no data, we'll just use empty array
         const ecgTimelineResult = await pool.query(
             `SELECT 
-                session_id,
-                predictions,
-                processed_at
-             FROM ecg_analysis_results
+                comparison_id as session_id,
+                comparison_results as predictions,
+                comparison_date as processed_at
+             FROM ecg_comparison_results
              WHERE user_id = $1 
-               AND processed_at >= NOW() - INTERVAL '30 days'
-             ORDER BY processed_at DESC
+               AND comparison_date >= NOW() - INTERVAL '30 days'
+             ORDER BY comparison_date DESC
              LIMIT 50`,
             [userId]
-        );
+        ).catch(err => {
+            console.log('📊 No ECG comparison data available, using empty timeline');
+            return { rows: [] };
+        });
 
         const profile = profileResult.rows[0] || {};
         const medical = medicalResult.rows[0] || {};

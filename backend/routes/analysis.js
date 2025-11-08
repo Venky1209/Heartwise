@@ -50,10 +50,11 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT ear.*, 
         es.session_name, es.start_time,
-        p.first_name, p.last_name
+        up.first_name, up.last_name
       FROM ecg_analysis_results ear
       JOIN ecg_sessions es ON ear.session_id = es.id
-      JOIN patients p ON es.patient_id = p.id
+      JOIN users u ON es.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
       ${whereClause}
       ORDER BY ear.processed_at DESC
       LIMIT $1 OFFSET $2
@@ -76,10 +77,11 @@ router.get('/:id', async (req, res) => {
     const query = `
       SELECT ear.*, 
         es.session_name, es.start_time, es.duration_seconds,
-        p.first_name, p.last_name, p.date_of_birth, p.gender
+        up.first_name, up.last_name, up.date_of_birth, up.gender
       FROM ecg_analysis_results ear
       JOIN ecg_sessions es ON ear.session_id = es.id
-      JOIN patients p ON es.patient_id = p.id
+      JOIN users u ON es.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
       WHERE ear.id = $1
     `;
     
@@ -369,10 +371,10 @@ async function runAbnormalityDetection(db, sessionId) {
   };
 }
 
-// Get analysis summary for a patient
-router.get('/patient/:patientId/summary', async (req, res) => {
+// Get analysis summary for a user
+router.get('/user/:userId/summary', async (req, res) => {
   try {
-    const { patientId } = req.params;
+    const { userId } = req.params;
     
     const query = `
       SELECT 
@@ -384,17 +386,17 @@ router.get('/patient/:patientId/summary', async (req, res) => {
         SUM(CASE WHEN ear.risk_level = 'critical' THEN 1 ELSE 0 END) as critical_count
       FROM ecg_analysis_results ear
       JOIN ecg_sessions es ON ear.session_id = es.id
-      WHERE es.patient_id = $1
+      WHERE es.user_id = $1
       GROUP BY ear.analysis_type
       ORDER BY ear.analysis_type
     `;
     
-    const result = await req.app.locals.db.query(query, [patientId]);
+    const result = await req.app.locals.db.query(query, [userId]);
     
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching patient analysis summary:', error);
-    res.status(500).json({ error: 'Failed to fetch patient analysis summary' });
+    console.error('Error fetching user analysis summary:', error);
+    res.status(500).json({ error: 'Failed to fetch user analysis summary' });
   }
 });
 

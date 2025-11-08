@@ -12,7 +12,9 @@ import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
-  SparklesIcon
+  SparklesIcon,
+  ShieldCheckIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
@@ -25,10 +27,11 @@ const Layout = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'AI Assistant', href: '/chat', icon: ChatBubbleLeftRightIcon },
     { name: 'ECG Monitor', href: '/monitor', icon: HeartIcon },
+    { name: 'Risk Score', href: '/risk-score', icon: ShieldCheckIcon },
     { name: 'Weekly Summary', href: '/weekly-summary', icon: CalendarDaysIcon },
     { name: 'Diet Plan', href: '/ai-diet', icon: SparklesIcon },
-    { name: 'Patients', href: '/patients', icon: UsersIcon },
     { name: 'Sessions', href: '/sessions', icon: ChartBarIcon },
     { name: 'Devices', href: '/devices', icon: CpuChipIcon },
     { name: 'Analysis', href: '/analysis', icon: Cog6ToothIcon },

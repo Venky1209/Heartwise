@@ -1,0 +1,382 @@
+/* HeartWise Custom Animations */
+
+/* Heartbeat Animation */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(1.1);
+  }
+  20% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.heartbeat-animation {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+/* Pulse Ring Animation */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  width: 100%;
+  height: 100%;
+  border: 3px solid #ef4444;
+  border-radius: 50%;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* ECG Wave Bars */
+@keyframes ecg-wave {
+  0%, 100% {
+    height: 10px;
+  }
+  25% {
+    height: 40px;
+  }
+  50% {
+    height: 5px;
+  }
+  75% {
+    height: 30px;
+  }
+}
+
+.ecg-wave-bar {
+  animation: ecg-wave 1.2s ease-in-out infinite;
+}
+
+/* Shimmer Effect for Skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Success Checkmark Animation */
+.checkmark {
+  animation: checkmark-scale 0.5s ease-in-out;
+}
+
+@keyframes checkmark-scale {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.checkmark-circle {
+  stroke: #22c55e;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  animation: checkmark-circle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes checkmark-circle {
+  0% {
+    stroke-dasharray: 0 157;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: 157 157;
+    stroke-dashoffset: 0;
+  }
+}
+
+.checkmark-check {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: checkmark-check 0.4s 0.4s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+  stroke-dasharray: 0 50;
+  stroke-dashoffset: 0;
+}
+
+@keyframes checkmark-check {
+  0% {
+    stroke-dasharray: 0 50;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: 50 50;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Gradient Animation */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-animate {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Float Animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Fade In Up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Slide In Right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+/* Bounce In */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.bounce-in {
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Glow Effect */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.glow-animation {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Heart Glow */
+@keyframes heart-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.8));
+  }
+}
+
+.heart-glow {
+  animation: heart-glow 1.5s ease-in-out infinite;
+}
+
+/* Typing Animation */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink-caret {
+  from, to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #3b82f6;
+  }
+}
+
+.typing-animation {
+  overflow: hidden;
+  border-right: 2px solid #3b82f6;
+  white-space: nowrap;
+  animation: typing 3s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+/* Counter Number Animation */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.count-up-animation {
+  animation: count-up 0.8s ease-out;
+}
+
+/* Ripple Effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  animation: ripple 0.6s ease-out;
+}
+
+/* Skeleton Loading */
+.skeleton-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Progress Bar Fill */
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+}
+
+.progress-fill-animation {
+  animation: progress-fill 1s ease-out forwards;
+}
+
+/* Wiggle Animation */
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+.wiggle-animation {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-transition-slow {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  transition: box-shadow 0.3s ease;
+}

@@ -35,6 +35,7 @@ const generateAccessToken = (user) => {
         { 
             userId: user.id, 
             email: user.email,
+            role: user.role || 'patient',
             subscriptionTier: user.subscription_tier 
         },
         JWT_SECRET,
@@ -308,7 +309,7 @@ router.post('/login', async (req, res) => {
     try {
         // Get user
         const userResult = await pool.query(
-            `SELECT id, email, password_hash, subscription_tier, subscription_status, activated, 
+            `SELECT id, email, password_hash, role, subscription_tier, subscription_status, activated, 
                     failed_login_attempts, account_locked_until
              FROM users 
              WHERE email = $1 AND deleted_at IS NULL`,
@@ -406,6 +407,7 @@ router.post('/login', async (req, res) => {
             user: {
                 id: user.id,
                 email: user.email,
+                role: user.role || 'patient',
                 subscriptionTier: user.subscription_tier,
                 subscriptionStatus: user.subscription_status,
                 hasProfile,

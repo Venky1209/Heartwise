@@ -22,12 +22,12 @@
 #include <esp_wifi.h>
 
 // WiFi Configuration
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid = "Dayalan";
+const char* password = "9994238295@D";
 
 // Server Configuration
-const char* server_host = "192.168.1.100"; // Replace with your server IP
-const int server_port = 5000;
+const char* server_host = "192.168.1.10"; // Your Mac's IP address
+const int server_port = 5001;
 const char* websocket_path = "/socket.io/?EIO=4&transport=websocket";
 
 // Pin Definitions

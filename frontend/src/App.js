@@ -6,8 +6,6 @@ import { Toaster } from 'react-hot-toast';
 // Components
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
-import Patients from './pages/Patients';
-import PatientDetail from './pages/PatientDetail';
 import ECGMonitor from './pages/ECGMonitor';
 import Sessions from './pages/Sessions';
 import SessionDetail from './pages/SessionDetail';
@@ -17,12 +15,17 @@ import ECGReport from './pages/ECGReport';
 import WeeklySummary from './pages/WeeklySummaryEnhanced';
 import DietRecommendations from './pages/DietRecommendations';
 import AIDietRecommendations from './pages/AIDietRecommendations';
+import RiskScore from './pages/RiskScore';
 import Profile from './pages/Profile';
 import ProfileComplete from './pages/ProfileComplete';
+import ChatAssistant from './components/ChatAssistant';
 
 // Auth Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+
+// Doctor Pages
+import DoctorDashboard from './pages/DoctorDashboard';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -60,8 +63,6 @@ function App() {
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="patients" element={<Patients />} />
-                  <Route path="patients/:id" element={<PatientDetail />} />
                   <Route path="monitor" element={<ECGMonitor />} />
                   <Route path="monitor/:sessionId" element={<ECGMonitor />} />
                   <Route path="sessions" element={<Sessions />} />
@@ -71,8 +72,13 @@ function App() {
                   <Route path="analysis/:sessionId" element={<Analysis />} />
                   <Route path="report/:sessionId" element={<ECGReport />} />
                   <Route path="weekly-summary" element={<WeeklySummary />} />
+                  <Route path="risk-score" element={<RiskScore />} />
                   <Route path="diet" element={<DietRecommendations />} />
                   <Route path="ai-diet" element={<AIDietRecommendations />} />
+                  <Route path="chat" element={<ChatAssistant />} />
+                  
+                  {/* Doctor Routes */}
+                  <Route path="doctor/dashboard" element={<DoctorDashboard />} />
                 </Route>
               </Routes>
               <Toaster

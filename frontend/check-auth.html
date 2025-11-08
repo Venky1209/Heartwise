@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>HeartWise Auth Debug Tool</h1>
+    
+    <div class="info">
+        <h2>Current Authentication Status</h2>
+        <div id="authStatus"></div>
+    </div>
+
+    <div class="info">
+        <h2>Actions</h2>
+        <button onclick="testAPI()">Test Diet API</button>
+        <button onclick="loginUser()">Login as guganasfr@gmail.com</button>
+        <button onclick="clearAuth()">Clear Auth</button>
+    </div>
+
+    <div class="info">
+        <h2>API Response</h2>
+        <pre id="apiResponse">Click "Test Diet API" to test the endpoint</pre>
+    </div>
+
+    <script>
+        function checkAuth() {
+            const token = localStorage.getItem('accessToken');
+            const user = localStorage.getItem('user');
+            const refreshToken = localStorage.getItem('refreshToken');
+
+            let html = '<p><strong>Access Token:</strong> ';
+            if (token) {
+                html += `<span class="success">✓ Present (${token.substring(0, 50)}...)</span>`;
+            } else {
+                html += '<span class="error">✗ Missing</span>';
+            }
+            html += '</p>';
+
+            html += '<p><strong>Refresh Token:</strong> ';
+            if (refreshToken) {
+                html += '<span class="success">✓ Present</span>';
+            } else {
+                html += '<span class="error">✗ Missing</span>';
+            }
+            html += '</p>';
+
+            html += '<p><strong>User Data:</strong> ';
+            if (user) {
+                const userData = JSON.parse(user);
+                html += `<span class="success">✓ Present (${userData.email})</span>`;
+            } else {
+                html += '<span class="error">✗ Missing</span>';
+            }
+            html += '</p>';
+
+            document.getElementById('authStatus').innerHTML = html;
+        }
+
+        async function loginUser() {
+            try {
+                const response = await fetch('http://localhost:5001/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'guganasfr@gmail.com',
+                        password: 'gugan@2022'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.accessToken) {
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('refreshToken', data.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    alert('✓ Login successful! Now test the Diet API.');
+                    checkAuth();
+                } else {
+                    alert('✗ Login failed: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                alert('✗ Error: ' + error.message);
+            }
+        }
+
+        async function testAPI() {
+            const token = localStorage.getItem('accessToken');
+            
+            if (!token) {
+                document.getElementById('apiResponse').textContent = 'ERROR: No access token found. Click "Login" first.';
+                return;
+            }
+
+            try {
+                document.getElementById('apiResponse').textContent = 'Loading... (this may take 10+ seconds)';
+                
+                const response = await fetch('http://localhost:5001/api/diet/recommendations?ai=true', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('apiResponse').textContent = 'ERROR: ' + error.message;
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            alert('✓ Auth data cleared');
+            checkAuth();
+        }
+
+        // Check auth on page load
+        checkAuth();
+    </script>
+</body>
+</html>

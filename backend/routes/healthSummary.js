@@ -23,6 +23,15 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
     const weeksAgo = parseInt(req.query.weeksAgo) || 0; // 0 = current week, 1 = last week, etc.
 
     try {
+        // Check if pool is initialized
+        if (!pool) {
+            console.error('❌ Database pool not initialized in healthSummary route');
+            return res.status(500).json({ 
+                error: 'Database connection not available',
+                message: 'Database pool not initialized' 
+            });
+        }
+        
         console.log(`📊 Fetching weekly summary for user ${userId}, weeksAgo: ${weeksAgo}`);
         
         // Calculate date range for the requested week
@@ -33,9 +42,9 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
 
         console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
-        // Get all ECG sessions with their analysis results for this week
+        // Get all ECG sessions with their LATEST analysis results for this week
         const sessionsResult = await pool.query(
-            `SELECT 
+            `SELECT DISTINCT ON (es.id)
                 es.id, es.session_name, es.start_time, es.end_time, es.duration_seconds,
                 es.is_completed, es.device_id,
                 ear.predictions,
@@ -48,7 +57,7 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
              WHERE es.user_id = $1 
                AND es.start_time >= $2 
                AND es.start_time < $3
-             ORDER BY es.start_time ASC`,
+             ORDER BY es.id, ear.processed_at DESC NULLS LAST, es.start_time ASC`,
             [userId, startDate, endDate]
         );
 
@@ -209,10 +218,10 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
         const prevWeekResult = await pool.query(
             `SELECT 
                 COUNT(*) as session_count
-             FROM ecg_sessions 
-             WHERE user_id = $1 
-               AND start_time >= $2 
-               AND start_time < $3`,
+             FROM ecg_sessions es
+             WHERE es.user_id = $1 
+               AND es.start_time >= $2 
+               AND es.start_time < $3`,
             [userId, prevWeekStart, prevWeekEnd]
         );
 
@@ -250,6 +259,40 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
         console.log('✓ Weekly summary generated successfully');
         console.log(`📈 Daily breakdown: ${dailyBreakdown.length} days, Avg HR: ${avgHeartRate}, Avg HRV: ${avgHRV}`);
         
+        // Calculate additional comprehensive statistics
+        const classifications = sessions
+            .filter(s => s.classification && s.classification !== 'Unknown')
+            .map(s => s.classification);
+        
+        const classificationCounts = {};
+        classifications.forEach(c => {
+            classificationCounts[c] = (classificationCounts[c] || 0) + 1;
+        });
+
+        const riskLevels = sessions.filter(s => s.risk_level).map(s => s.risk_level);
+        const riskLevelCounts = {};
+        riskLevels.forEach(r => {
+            riskLevelCounts[r] = (riskLevelCounts[r] || 0) + 1;
+        });
+
+        // Calculate session frequency per day
+        const daysWithSessions = new Set(
+            sessions.map(s => new Date(s.start_time).toISOString().split('T')[0])
+        ).size;
+
+        const avgSessionsPerDay = daysWithSessions > 0 
+            ? (totalSessions / daysWithSessions).toFixed(1)
+            : 0;
+
+        // Quality metrics
+        const avgConfidence = sessions
+            .filter(s => s.confidence_score)
+            .reduce((sum, s, i, arr) => sum + s.confidence_score / arr.length, 0);
+
+        const avgSignalQuality = sessions
+            .filter(s => s.signal_quality_score)
+            .reduce((sum, s, i, arr) => sum + s.signal_quality_score / arr.length, 0);
+        
         res.json({
             period: {
                 start: startDate.toISOString(),
@@ -259,12 +302,18 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
             summary: {
                 totalSessions,
                 totalDuration,
-                avgHeartRate,
-                minHeartRate,
-                maxHeartRate,
-                avgHRV,
-                avgRMSSD,
-                detectedConditions
+                avgHeartRate: avgHeartRate ? Math.round(avgHeartRate) : null,
+                minHeartRate: minHeartRate ? Math.round(minHeartRate) : null,
+                maxHeartRate: maxHeartRate ? Math.round(maxHeartRate) : null,
+                avgHRV: avgHRV ? Math.round(avgHRV) : null,
+                avgRMSSD: avgRMSSD ? Math.round(avgRMSSD) : null,
+                detectedConditions,
+                classificationCounts,
+                riskLevelCounts,
+                daysWithSessions,
+                avgSessionsPerDay: parseFloat(avgSessionsPerDay),
+                avgConfidence: avgConfidence ? Math.round(avgConfidence * 100) / 100 : null,
+                avgSignalQuality: avgSignalQuality ? Math.round(avgSignalQuality * 100) / 100 : null
             },
             dailyBreakdown,
             comparison,
@@ -274,8 +323,11 @@ router.get('/weekly-summary', authenticateToken, async (req, res) => {
                 name: s.session_name,
                 startTime: s.start_time,
                 duration: s.duration_seconds,
-                avgHeartRate: s.heart_rate_bpm,
-                hrv: s.hrv_sdnn
+                avgHeartRate: s.heart_rate_bpm ? Math.round(s.heart_rate_bpm) : null,
+                hrv: s.hrv_sdnn ? Math.round(s.hrv_sdnn) : null,
+                classification: s.classification,
+                riskLevel: s.risk_level,
+                confidence: s.confidence_score
             }))
         });
 
@@ -416,18 +468,18 @@ router.get('/monthly-trends', authenticateToken, async (req, res) => {
 
         const trendsResult = await pool.query(
             `SELECT 
-                DATE_TRUNC('week', start_time) as week,
+                DATE_TRUNC('week', es.start_time) as week,
                 COUNT(*) as session_count,
-                AVG(avg_heart_rate) as avg_hr,
-                MIN(min_heart_rate) as min_hr,
-                MAX(max_heart_rate) as max_hr,
-                AVG(hrv_sdnn) as avg_hrv,
-                AVG(hrv_rmssd) as avg_rmssd
-             FROM ecg_sessions 
-             WHERE user_id = $1 
-               AND start_time >= $2
-               AND deleted_at IS NULL
-             GROUP BY DATE_TRUNC('week', start_time)
+                AVG((ear.predictions->>'heartRate')::numeric) as avg_hr,
+                MIN((ear.predictions->>'heartRate')::numeric) as min_hr,
+                MAX((ear.predictions->>'heartRate')::numeric) as max_hr,
+                AVG((ear.predictions->'hrv'->>'SDNN')::numeric) as avg_hrv,
+                AVG((ear.predictions->'hrv'->>'RMSSD')::numeric) as avg_rmssd
+             FROM ecg_sessions es
+             LEFT JOIN ecg_analysis_results ear ON es.id = ear.session_id
+             WHERE es.user_id = $1 
+               AND es.start_time >= $2
+             GROUP BY DATE_TRUNC('week', es.start_time)
              ORDER BY week ASC`,
             [userId, startDate]
         );
