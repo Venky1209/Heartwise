@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   PlayIcon, 
@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSocket } from '../context/SocketContext';
 import RealTimeECGChart from '../components/ECG/RealTimeECGChart';
+import ConnectionModeSelector, { CONNECTION_MODES } from '../components/ConnectionModeSelector';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,77 @@ const ECGMonitor = () => {
   const [sessionNotes, setSessionNotes] = useState('');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Connection mode state
+  const [connectionMode, setConnectionMode] = useState(CONNECTION_MODES.WIFI);
+  const [bleData, setBleData] = useState([]);
+  const [bleConnected, setBleConnected] = useState(false);
+  const [usbConnected, setUsbConnected] = useState(false);
+
+  // Track where session started in data arrays
+  const [sessionStartBleIndex, setSessionStartBleIndex] = useState(0);
+  const [sessionStartRealtimeIndex, setSessionStartRealtimeIndex] = useState(0);
+  
+  // Refs for control functions
+  const bleControlRef = useRef(null);
+  const usbControlRef = useRef(null);
+
+  // Handle BLE data received
+  const handleBLEData = useCallback((data) => {
+    if (data.data && Array.isArray(data.data)) {
+      // Data already has displayTime added by ConnectionModeSelector
+      setBleData(prev => {
+        const newData = [...prev, ...data.data];
+        // Keep last 7500 points (30 seconds at 250 Hz)
+        return newData.slice(-7500);
+      });
+    }
+  }, []);
+
+  // Handle BLE connection change
+  const handleBLEConnectionChange = useCallback((connected, device) => {
+    setBleConnected(connected);
+    if (!connected) {
+      setBleData([]);
+    }
+  }, []);
+
+  // Handle USB data received
+  const handleUSBData = useCallback((data) => {
+    // Accept data in multiple formats:
+    // 1. { type: 'ecg-data', data: [...] } - standard format
+    // 2. { data: [...] } - simplified format
+    // 3. { type: 'status', ... } - status messages (ignore for data)
+    
+    // Skip non-data messages
+    if (data.type === 'device-info' || data.type === 'status' || data.status) {
+      console.log('USB status/info:', data);
+      return;
+    }
+    
+    // Extract data array from various formats
+    let dataArray = null;
+    if (data.data && Array.isArray(data.data)) {
+      dataArray = data.data;
+    } else if (Array.isArray(data)) {
+      dataArray = data;
+    }
+    
+    if (dataArray && dataArray.length > 0) {
+      // Add displayTime to each data point
+      const now = Date.now();
+      const dataWithDisplayTime = dataArray.map((point, index) => ({
+        ...point,
+        // Handle both 'voltage' and 'v' field names
+        voltage: point.voltage ?? point.v ?? 0,
+        displayTime: now - ((dataArray.length - 1 - index) * 4), // 4ms between samples at 250Hz
+      }));
+      setBleData(prev => {
+        const newData = [...prev, ...dataWithDisplayTime];
+        return newData.slice(-7500);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     fetchDevices();
@@ -81,7 +153,24 @@ const ECGMonitor = () => {
   };
 
   const startNewSession = async () => {
-    if (!selectedDevice) {
+    // For BLE/USB modes, check if connected
+    if (connectionMode === CONNECTION_MODES.BLE) {
+      if (!bleControlRef.current?.isConnected()) {
+        toast.error('Please connect to a Bluetooth device first');
+        return;
+      }
+    }
+    
+    // For USB mode, check if connected
+    if (connectionMode === CONNECTION_MODES.USB) {
+      if (!usbControlRef.current?.isConnected()) {
+        toast.error('Please connect via USB Serial first');
+        return;
+      }
+    }
+    
+    // For WiFi mode, require device selection
+    if (connectionMode === CONNECTION_MODES.WIFI && !selectedDevice) {
       toast.error('Please select a device');
       return;
     }
@@ -91,7 +180,7 @@ const ECGMonitor = () => {
       
       const sessionData = {
         sessionName: `ECG Session - ${new Date().toLocaleDateString()}`,
-        deviceId: selectedDevice,
+        deviceId: connectionMode === CONNECTION_MODES.WIFI ? selectedDevice : `${connectionMode}-device`,
         notes: sessionNotes,
         sampleRate: 250
       };
@@ -100,12 +189,49 @@ const ECGMonitor = () => {
       const newSession = response.data.session;
       
       setCurrentSession(newSession);
-      joinSession(newSession.id);
+      
+      // For BLE mode, send start command via BLE
+      if (connectionMode === CONNECTION_MODES.BLE && bleControlRef.current) {
+        const started = await bleControlRef.current.startRecording(newSession.id);
+        if (!started) {
+          toast.error('Failed to start BLE recording');
+          return;
+        }
+      }
+      
+      // For USB mode, send start command via USB (non-blocking - data may already be flowing)
+      if (connectionMode === CONNECTION_MODES.USB && usbControlRef.current) {
+        try {
+          await usbControlRef.current.startRecording(newSession.id);
+        } catch (e) {
+          console.warn('USB start command failed, but continuing - data may already be flowing:', e);
+        }
+      }
+      
+      // For WiFi mode, join socket session
+      if (connectionMode === CONNECTION_MODES.WIFI) {
+        joinSession(newSession.id);
+      }
+      
+      // Set session start index for stats
+      if (connectionMode === CONNECTION_MODES.WIFI) {
+        setSessionStartRealtimeIndex(realtimeECGData.length);
+      } else {
+        setSessionStartBleIndex(bleData.length);
+      }
+
       setIsRecording(true);
       setRecordingDuration(0);
       
       toast.success('ECG session started successfully');
-      navigate(`/monitor/${newSession.id}`);
+      
+      // Only navigate for WiFi mode - BLE/USB need to keep their connection state
+      if (connectionMode === CONNECTION_MODES.WIFI) {
+        navigate(`/monitor/${newSession.id}`);
+      } else {
+        // For BLE/USB, update URL without full navigation to preserve connection
+        window.history.replaceState(null, '', `/monitor/${newSession.id}`);
+      }
     } catch (error) {
       console.error('Error starting session:', error);
       toast.error('Failed to start ECG session');
@@ -120,6 +246,16 @@ const ECGMonitor = () => {
     try {
       setLoading(true);
       
+      // Stop BLE recording if in BLE mode
+      if (connectionMode === CONNECTION_MODES.BLE && bleControlRef.current) {
+        await bleControlRef.current.stopRecording();
+      }
+      
+      // Stop USB recording if in USB mode
+      if (connectionMode === CONNECTION_MODES.USB && usbControlRef.current) {
+        await usbControlRef.current.stopRecording();
+      }
+      
       await api.put(`/sessions/${currentSession.id}`, {
         isCompleted: true,
         endTime: new Date().toISOString(),
@@ -130,6 +266,7 @@ const ECGMonitor = () => {
       setIsRecording(false);
       setCurrentSession(null);
       setRecordingDuration(0);
+      setBleData([]); // Clear BLE data
       
       toast.success('ECG session completed');
       navigate('/sessions');
@@ -166,16 +303,27 @@ const ECGMonitor = () => {
   // };
 
   const getDeviceStatus = (deviceId) => {
-    const status = deviceStatus[deviceId];
-    if (!status) return { text: 'Unknown', color: 'text-gray-500' };
+    // First check real-time Socket.IO status
+    const realtimeStatus = deviceStatus[deviceId];
+    if (realtimeStatus) {
+      const lastSeen = new Date(realtimeStatus.lastUpdate);
+      const now = new Date();
+      const minutesAgo = (now - lastSeen) / (1000 * 60);
+      
+      if (minutesAgo < 5) return { text: 'Online', color: 'text-green-600' };
+      if (minutesAgo < 60) return { text: 'Recent', color: 'text-yellow-600' };
+      return { text: 'Offline', color: 'text-red-600' };
+    }
     
-    const lastSeen = new Date(status.lastUpdate);
-    const now = new Date();
-    const minutesAgo = (now - lastSeen) / (1000 * 60);
+    // Fall back to database status from the devices list
+    const device = devices.find(d => d.device_id === deviceId);
+    if (device && device.status) {
+      if (device.status === 'online') return { text: 'Online', color: 'text-green-600' };
+      if (device.status === 'recent') return { text: 'Recent', color: 'text-yellow-600' };
+      if (device.status === 'offline') return { text: 'Offline', color: 'text-red-600' };
+    }
     
-    if (minutesAgo < 5) return { text: 'Online', color: 'text-green-600' };
-    if (minutesAgo < 60) return { text: 'Recent', color: 'text-yellow-600' };
-    return { text: 'Offline', color: 'text-red-600' };
+    return { text: 'Unknown', color: 'text-gray-500' };
   };
 
   return (
@@ -207,6 +355,19 @@ const ECGMonitor = () => {
             
             {!isRecording ? (
               <div className="space-y-4">
+                {/* Connection Mode Selector */}
+                <ConnectionModeSelector
+                  currentMode={connectionMode}
+                  onModeChange={setConnectionMode}
+                  onBLEData={handleBLEData}
+                  onBLEConnectionChange={handleBLEConnectionChange}
+                  onUSBData={handleUSBData}
+                  onUSBConnectionChange={setUsbConnected}
+                  disabled={isRecording}
+                  bleControlRef={bleControlRef}
+                  usbControlRef={usbControlRef}
+                />
+
                 {/* User Info Display */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-900">Recording as:</p>
@@ -215,7 +376,8 @@ const ECGMonitor = () => {
                   </p>
                 </div>
 
-                {/* Device Selection */}
+                {/* Device Selection - Only show for WiFi mode */}
+                {connectionMode === CONNECTION_MODES.WIFI && (
                 <div>
                   <label className="form-label">Select Device</label>
                   <select
@@ -241,6 +403,7 @@ const ECGMonitor = () => {
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* Session Notes */}
                 <div>
@@ -258,7 +421,11 @@ const ECGMonitor = () => {
                 {/* Start Button */}
                 <button
                   onClick={startNewSession}
-                  disabled={!selectedDevice || loading || !isConnected}
+                  disabled={
+                    loading || 
+                    (connectionMode === CONNECTION_MODES.WIFI && (!selectedDevice || !isConnected)) ||
+                    (connectionMode === CONNECTION_MODES.BLE && !bleConnected)
+                  }
                   className="w-full btn-success flex items-center justify-center"
                 >
                   <PlayIcon className="h-5 w-5 mr-2" />
@@ -294,12 +461,19 @@ const ECGMonitor = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-600">Data Points</p>
-                    <p className="text-xl font-bold text-blue-800">{realtimeECGData.length}</p>
+                    <p className="text-xl font-bold text-blue-800">
+                      {connectionMode === CONNECTION_MODES.WIFI 
+                        ? realtimeECGData.length - sessionStartRealtimeIndex
+                        : bleData.length - sessionStartBleIndex}
+                    </p>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <p className="text-sm text-green-600">Quality</p>
                     <p className="text-xl font-bold text-green-800">
-                      {realtimeECGData.length > 0 ? 'Good' : 'No Signal'}
+                      {(connectionMode === CONNECTION_MODES.WIFI
+                        ? (realtimeECGData.length - sessionStartRealtimeIndex) > 0
+                        : (bleData.length - sessionStartBleIndex) > 0
+                      ) ? 'Good' : 'No Signal'}
                     </p>
                   </div>
                 </div>
@@ -378,6 +552,7 @@ const ECGMonitor = () => {
           <RealTimeECGChart 
             sessionId={currentSession?.id} 
             height={500}
+            externalData={connectionMode !== CONNECTION_MODES.WIFI ? bleData : null}
           />
         </div>
       </div>

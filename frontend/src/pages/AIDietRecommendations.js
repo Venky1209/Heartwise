@@ -39,7 +39,10 @@ const AIDietRecommendations = () => {
       const response = await api.get(`/diet/recommendations?ai=${useAI}`);
       
       if (response.data.profileIncomplete) {
-        toast.warning('Please complete your profile for personalized recommendations');
+        toast('Please complete your profile for personalized recommendations', {
+          icon: '⚠️',
+          duration: 4000
+        });
       }
       
       setRecommendations(response.data.recommendations || response.data);
@@ -89,6 +92,46 @@ const AIDietRecommendations = () => {
   if (!recommendations) return null;
 
   const isAIPowered = recommendations.ai_powered;
+
+  // Normalize recommendations to handle both AI and rule-based response formats
+  const normalizedRecommendations = {
+    // Use primary_goals if available, otherwise use goals
+    goals: recommendations.primary_goals || recommendations.goals || [],
+    restrictions: recommendations.restrictions || [],
+    nutrients: recommendations.nutrients || {
+      prioritize: [],
+      limit: [],
+      avoid: []
+    },
+    foodGroups: recommendations.foodGroups || {
+      increase: [],
+      reduce: []
+    },
+    // AI format uses foods_to_increase, rule-based uses foodGroups.increase
+    foodsToIncrease: recommendations.foods_to_increase || 
+      (recommendations.foodGroups?.increase?.map(g => ({
+        food: g.name,
+        benefit: g.benefit,
+        examples: g.examples,
+        frequency: 'Daily recommended'
+      })) || []),
+    foodsToLimit: recommendations.foods_to_limit ||
+      (recommendations.foodGroups?.reduce?.map(g => ({
+        food: g.name,
+        reason: g.reason,
+        max_frequency: 'Limit intake'
+      })) || []),
+    foodsToAvoid: recommendations.foods_to_avoid || [],
+    mealPlan: recommendations.sample_meal_plan || recommendations.mealPlan || {},
+    macroTargets: recommendations.macronutrient_targets,
+    calorieTarget: recommendations.daily_calorie_target,
+    sodiumLimit: recommendations.sodium_limit,
+    groceryList: recommendations.grocery_shopping_list,
+    tips: recommendations.personalized_tips || recommendations.tips || [],
+    summary: recommendations.summary,
+    contextSummary: recommendations.context_summary,
+    waterIntake: recommendations.waterIntake || '8-10 glasses per day'
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -142,18 +185,18 @@ const AIDietRecommendations = () => {
       </div>
 
       {/* Summary Section */}
-      {recommendations.summary && (
+      {normalizedRecommendations.summary && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-600 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-3 flex items-center">
             <HeartIcon className="h-6 w-6 text-indigo-600 mr-2" />
             Your Personalized Approach
           </h2>
-          <p className="text-gray-700 leading-relaxed">{recommendations.summary}</p>
+          <p className="text-gray-700 leading-relaxed">{normalizedRecommendations.summary}</p>
         </div>
       )}
 
       {/* ECG Insights (if available) */}
-      {recommendations.context_summary && recommendations.context_summary.ecg_readings_analyzed > 0 && (
+      {normalizedRecommendations.contextSummary && normalizedRecommendations.contextSummary.ecg_readings_analyzed > 0 && (
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
           <h3 className="font-semibold text-purple-900 mb-3 flex items-center">
             <ChartBarIcon className="h-5 w-5 mr-2" />
@@ -163,33 +206,33 @@ const AIDietRecommendations = () => {
             <div>
               <span className="text-purple-600 font-medium">ECG Readings:</span>
               <p className="text-purple-900 text-lg font-bold">
-                {recommendations.context_summary.ecg_readings_analyzed}
+                {normalizedRecommendations.contextSummary.ecg_readings_analyzed}
               </p>
             </div>
             <div>
               <span className="text-purple-600 font-medium">Conditions:</span>
               <p className="text-purple-900 text-lg font-bold">
-                {recommendations.context_summary.conditions_count}
+                {normalizedRecommendations.contextSummary.conditions_count}
               </p>
             </div>
             <div>
               <span className="text-purple-600 font-medium">Medications:</span>
               <p className="text-purple-900 text-lg font-bold">
-                {recommendations.context_summary.medications_count}
+                {normalizedRecommendations.contextSummary.medications_count}
               </p>
             </div>
             <div>
               <span className="text-purple-600 font-medium">BMI:</span>
               <p className="text-purple-900 text-lg font-bold">
-                {recommendations.context_summary.bmi || 'N/A'}
+                {normalizedRecommendations.contextSummary.bmi || 'N/A'}
               </p>
             </div>
           </div>
-          {recommendations.context_summary.primary_concerns && (
+          {normalizedRecommendations.contextSummary.primary_concerns && (
             <div className="mt-4">
               <span className="text-purple-600 font-medium text-sm">Focus Areas:</span>
               <div className="flex flex-wrap gap-2 mt-2">
-                {recommendations.context_summary.primary_concerns.map((concern, idx) => (
+                {normalizedRecommendations.contextSummary.primary_concerns.map((concern, idx) => (
                   <span key={idx} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
                     {concern.replace('_', ' ')}
                   </span>
@@ -201,14 +244,14 @@ const AIDietRecommendations = () => {
       )}
 
       {/* Goals */}
-      {recommendations.primary_goals && (
+      {normalizedRecommendations.goals.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
             <ClipboardDocumentCheckIcon className="h-7 w-7 text-green-600 mr-2" />
             Your Health Goals
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recommendations.primary_goals.map((goal, index) => (
+            {normalizedRecommendations.goals.map((goal, index) => (
               <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
                 <CheckCircleIcon className="h-6 w-6 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
                 <span className="text-gray-800 font-medium">{goal}</span>
@@ -219,18 +262,18 @@ const AIDietRecommendations = () => {
       )}
 
       {/* Macronutrient Targets */}
-      {recommendations.macronutrient_targets && (
+      {normalizedRecommendations.macroTargets && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
             <FireIcon className="h-7 w-7 text-orange-600 mr-2" />
             Daily Nutrition Targets
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {recommendations.daily_calorie_target && (
+            {normalizedRecommendations.calorieTarget && (
               <div className="text-center">
                 <div className="bg-orange-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-orange-800">
-                    {recommendations.daily_calorie_target}
+                    {normalizedRecommendations.calorieTarget}
                   </span>
                 </div>
                 <p className="text-gray-600 font-medium">Daily Calories</p>
@@ -239,7 +282,7 @@ const AIDietRecommendations = () => {
             <div className="text-center">
               <div className="bg-blue-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-3">
                 <span className="text-xl font-bold text-blue-800">
-                  {recommendations.macronutrient_targets.protein}
+                  {normalizedRecommendations.macroTargets.protein}
                 </span>
               </div>
               <p className="text-gray-600 font-medium">Protein</p>
@@ -247,7 +290,7 @@ const AIDietRecommendations = () => {
             <div className="text-center">
               <div className="bg-green-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-3">
                 <span className="text-xl font-bold text-green-800">
-                  {recommendations.macronutrient_targets.carbohydrates}
+                  {normalizedRecommendations.macroTargets.carbohydrates}
                 </span>
               </div>
               <p className="text-gray-600 font-medium">Carbs</p>
@@ -255,17 +298,17 @@ const AIDietRecommendations = () => {
             <div className="text-center">
               <div className="bg-yellow-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-3">
                 <span className="text-xl font-bold text-yellow-800">
-                  {recommendations.macronutrient_targets.fats}
+                  {normalizedRecommendations.macroTargets.fats}
                 </span>
               </div>
               <p className="text-gray-600 font-medium">Fats</p>
             </div>
           </div>
-          {recommendations.sodium_limit && (
+          {normalizedRecommendations.sodiumLimit && (
             <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-red-800">
                 <ExclamationTriangleIcon className="h-5 w-5 inline mr-2" />
-                <strong>Sodium Limit:</strong> {recommendations.sodium_limit} per day
+                <strong>Sodium Limit:</strong> {normalizedRecommendations.sodiumLimit} per day
               </p>
             </div>
           )}
@@ -273,14 +316,14 @@ const AIDietRecommendations = () => {
       )}
 
       {/* Sample Meal Plan */}
-      {recommendations.sample_meal_plan && (
+      {Object.keys(normalizedRecommendations.mealPlan).length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
             <ClockIcon className="h-7 w-7 text-blue-600 mr-2" />
             Today's Meal Plan
           </h2>
           <div className="space-y-6">
-            {Object.entries(recommendations.sample_meal_plan).map(([mealTime, items]) => (
+            {Object.entries(normalizedRecommendations.mealPlan).map(([mealTime, items]) => (
               <div key={mealTime} className="border-l-4 border-blue-400 pl-4">
                 <h3 className="text-lg font-semibold text-gray-900 capitalize mb-2">
                   {mealTime.replace('_', ' ')}
@@ -289,7 +332,9 @@ const AIDietRecommendations = () => {
                   {(Array.isArray(items) ? items : [items]).map((item, idx) => (
                     <li key={idx} className="flex items-start">
                       <span className="text-blue-600 mr-2">•</span>
-                      <span className="text-gray-700">{item}</span>
+                      <span className="text-gray-700">
+                        {typeof item === 'string' ? item : (item.name || item.description || JSON.stringify(item))}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -302,17 +347,17 @@ const AIDietRecommendations = () => {
       {/* Foods to Increase/Limit/Avoid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Increase */}
-        {recommendations.foods_to_increase && (
+        {normalizedRecommendations.foodsToIncrease.length > 0 && (
           <div className="bg-green-50 rounded-xl shadow-md p-6">
             <h3 className="text-lg font-bold text-green-900 mb-4">✅ Increase</h3>
             <div className="space-y-4">
-              {recommendations.foods_to_increase.map((food, idx) => (
+              {normalizedRecommendations.foodsToIncrease.map((food, idx) => (
                 <div key={idx} className="bg-white rounded-lg p-3">
-                  <p className="font-semibold text-gray-900">{food.food}</p>
+                  <p className="font-semibold text-gray-900">{food.food || food.name}</p>
                   <p className="text-sm text-gray-600 mt-1">{food.benefit}</p>
                   {food.examples && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Examples: {food.examples.join(', ')}
+                      Examples: {Array.isArray(food.examples) ? food.examples.join(', ') : food.examples}
                     </p>
                   )}
                   <p className="text-xs text-green-700 font-medium mt-2">
@@ -325,13 +370,13 @@ const AIDietRecommendations = () => {
         )}
 
         {/* Limit */}
-        {recommendations.foods_to_limit && (
+        {normalizedRecommendations.foodsToLimit.length > 0 && (
           <div className="bg-yellow-50 rounded-xl shadow-md p-6">
             <h3 className="text-lg font-bold text-yellow-900 mb-4">⚠️ Limit</h3>
             <div className="space-y-4">
-              {recommendations.foods_to_limit.map((food, idx) => (
+              {normalizedRecommendations.foodsToLimit.map((food, idx) => (
                 <div key={idx} className="bg-white rounded-lg p-3">
-                  <p className="font-semibold text-gray-900">{food.food}</p>
+                  <p className="font-semibold text-gray-900">{food.food || food.name}</p>
                   <p className="text-sm text-gray-600 mt-1">{food.reason}</p>
                   {food.max_frequency && (
                     <p className="text-xs text-yellow-700 font-medium mt-2">
@@ -345,14 +390,14 @@ const AIDietRecommendations = () => {
         )}
 
         {/* Avoid */}
-        {recommendations.foods_to_avoid && (
+        {normalizedRecommendations.foodsToAvoid.length > 0 && (
           <div className="bg-red-50 rounded-xl shadow-md p-6">
             <h3 className="text-lg font-bold text-red-900 mb-4">❌ Avoid</h3>
             <div className="space-y-4">
-              {recommendations.foods_to_avoid.map((food, idx) => (
+              {normalizedRecommendations.foodsToAvoid.map((food, idx) => (
                 <div key={idx} className="bg-white rounded-lg p-3">
-                  <p className="font-semibold text-gray-900">{food.food}</p>
-                  <p className="text-sm text-gray-600 mt-1">{food.reason}</p>
+                  <p className="font-semibold text-gray-900">{food.food || food.name || food}</p>
+                  <p className="text-sm text-gray-600 mt-1">{food.reason || ''}</p>
                 </div>
               ))}
             </div>
@@ -361,14 +406,14 @@ const AIDietRecommendations = () => {
       </div>
 
       {/* Grocery Shopping List */}
-      {recommendations.grocery_shopping_list && (
+      {normalizedRecommendations.groceryList && Object.keys(normalizedRecommendations.groceryList).length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
             <ShoppingBagIcon className="h-7 w-7 text-indigo-600 mr-2" />
             Grocery Shopping List
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {Object.entries(recommendations.grocery_shopping_list).map(([category, items]) => (
+            {Object.entries(normalizedRecommendations.groceryList).map(([category, items]) => (
               <div key={category}>
                 <h3 className="font-semibold text-gray-900 capitalize mb-3 pb-2 border-b-2 border-indigo-200">
                   {category.replace('_', ' ')}
@@ -388,14 +433,14 @@ const AIDietRecommendations = () => {
       )}
 
       {/* Personalized Tips */}
-      {recommendations.personalized_tips && (
+      {normalizedRecommendations.tips.length > 0 && (
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl shadow-md p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
             <SparklesIcon className="h-7 w-7 text-purple-600 mr-2" />
             Personalized Tips for You
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recommendations.personalized_tips.map((tip, idx) => (
+            {normalizedRecommendations.tips.map((tip, idx) => (
               <div key={idx} className="bg-white rounded-lg p-4 flex items-start">
                 <span className="bg-purple-100 text-purple-800 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-3 font-bold">
                   {idx + 1}

@@ -30,6 +30,7 @@ import DoctorDashboard from './pages/DoctorDashboard';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Styles
 import './index.css';
@@ -48,10 +49,11 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SocketProvider>
-          <Router>
-            <div className="App">
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <Router>
+              <div className="App">
               <Routes>
                 {/* Public Routes - Auth */}
                 <Route path="/login" element={<Login />} />
@@ -105,6 +107,7 @@ function App() {
           </Router>
         </SocketProvider>
       </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

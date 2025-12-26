@@ -1,29 +1,44 @@
 /**
  * Diet Recommendation Routes
- * AI-powered personalized diet recommendations ba        // Try AI-powered recommendations if enabled
-        if (useAI) {
-            try {
-                // Use 127.0.0.1 instead of localhost to force IPv4
-                const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5002';
-                
-                console.log('🤖 Requesting AI-powered diet recommendations from ML service...');
-                
-                const aiResponse = await axios.post(`${mlServiceUrl}/diet/recommend`, {
-                    profile: {
-                        age: profile.age,
-                        gender: profile.gender,t health
+ * AI-powered personalized diet recommendations based on user health
  */
 
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { authenticateToken } = require('./auth');
+
+// Gemini AI configuration - lazy initialization
+let genAI = null;
+let geminiModel = null;
+let geminiInitialized = false;
+
+// Initialize Gemini lazily on first use
+function initializeGemini() {
+    if (geminiInitialized) return;
+    geminiInitialized = true;
+    
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (GEMINI_API_KEY) {
+        try {
+            genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+            geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            console.log('✅ Gemini AI initialized for diet recommendations');
+        } catch (err) {
+            console.error('❌ Failed to initialize Gemini:', err.message);
+        }
+    } else {
+        console.log('⚠️ GEMINI_API_KEY not found - using rule-based recommendations only');
+    }
+}
 
 let pool;
 
 // Initialize with database pool
 router.initializePool = (dbPool) => {
     pool = dbPool;
+    // Initialize Gemini when pool is ready (dotenv should be loaded by now)
+    initializeGemini();
 };
 
 /**
@@ -86,49 +101,83 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         const medications = medicationsResult.rows;
         const ecgTimeline = ecgTimelineResult.rows;
 
-        // Check if user has basic profile information
+
+        // Always use AI (Gemini) for recommendations, even if profile is incomplete
+        let profileIncomplete = false;
         if (!profile.age || !profile.weight_kg) {
-            return res.status(200).json({
-                message: 'Please complete your profile to get personalized diet recommendations',
-                profileIncomplete: true,
-                recommendations: getGeneralHealthyDietRecommendations()
-            });
+            profileIncomplete = true;
         }
 
         let recommendations;
 
-        // Try AI-powered recommendations if enabled
-        if (useAI) {
+        // Try AI-powered recommendations if enabled (using Gemini)
+        if (useAI && geminiModel) {
             try {
-                const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:5002';
+                console.log('🤖 Requesting AI-powered diet recommendations from Gemini...');
                 
-                console.log('🤖 Requesting AI-powered diet recommendations from ML service...');
+                // Build user health context for AI
+                const healthContext = buildHealthContext(profile, medical, medications, ecgTimeline);
                 
-                const aiResponse = await axios.post(`${mlServiceUrl}/diet/recommend`, {
-                    profile: {
-                        age: profile.age,
-                        gender: profile.gender,
-                        height_cm: profile.height_cm,
-                        weight_kg: profile.weight_kg
-                    },
-                    medical_history: medical,
-                    medications: medications,
-                    ecg_timeline: ecgTimeline.map(row => ({
-                        session_id: row.session_id,
-                        predictions: row.predictions,
-                        processed_at: row.processed_at
-                    }))
-                }, {
-                    timeout: 30000 // 30 second timeout
-                });
+                const prompt = `You are a certified nutritionist and dietitian specializing in cardiovascular health. 
+Provide personalized diet recommendations in JSON format. Be specific and practical.
 
-                recommendations = aiResponse.data;
-                console.log('✅ AI recommendations generated successfully');
+Return ONLY valid JSON with this exact structure (no markdown, no explanation, no code blocks):
+{
+  "goals": ["string array of 2-3 health goals"],
+  "restrictions": ["dietary restrictions/limits"],
+  "nutrients": {
+    "prioritize": ["nutrients to increase"],
+    "limit": ["nutrients to limit"],
+    "avoid": ["nutrients to avoid"]
+  },
+  "foodGroups": {
+    "increase": [{"name": "category", "examples": ["food1", "food2"], "benefit": "why"}],
+    "reduce": [{"name": "category", "examples": ["food1", "food2"], "reason": "why"}]
+  },
+  "mealPlan": {
+    "breakfast": [{"name": "meal", "description": "details", "calories": 300, "hearthealthy": true}],
+    "lunch": [{"name": "meal", "description": "details", "calories": 400, "hearthealthy": true}],
+    "dinner": [{"name": "meal", "description": "details", "calories": 400, "hearthealthy": true}],
+    "snacks": [{"name": "snack", "description": "details", "calories": 150, "hearthealthy": true}]
+  },
+  "tips": ["5-6 actionable tips with emojis"],
+  "waterIntake": "recommended water intake"
+}
+
+Create personalized diet recommendations for this patient:
+
+${healthContext}`;
+
+                const result = await geminiModel.generateContent(prompt);
+                const aiContent = result.response.text();
+                
+                // Try to parse JSON from response
+                try {
+                    // Extract JSON from response (handle markdown code blocks)
+                    let jsonStr = aiContent.trim();
+                    // Remove markdown code blocks if present
+                    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+                    if (jsonMatch) {
+                        jsonStr = jsonMatch[1].trim();
+                    }
+                    // Remove any leading/trailing text before/after JSON
+                    const jsonStart = jsonStr.indexOf('{');
+                    const jsonEnd = jsonStr.lastIndexOf('}');
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
+                    }
+                    recommendations = JSON.parse(jsonStr);
+                    recommendations.ai_powered = true;
+                    console.log('✅ AI diet recommendations generated successfully via Gemini');
+                } catch (parseError) {
+                    console.error('⚠️ Failed to parse AI response, using rule-based:', parseError.message);
+                    console.log('Raw AI response:', aiContent.substring(0, 500));
+                    throw new Error('JSON parse failed');
+                }
 
             } catch (aiError) {
                 console.error('⚠️  AI service error, falling back to rule-based:', aiError.message);
                 // Fallback to rule-based recommendations
-                // Calculate health metrics from ECG timeline
                 const health = {
                     avg_hr: ecgTimeline.length > 0 
                         ? Math.round(ecgTimeline.reduce((sum, r) => sum + (r.predictions?.heart_rate || 0), 0) / ecgTimeline.length)
@@ -156,44 +205,56 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
             });
         }
 
-        // Get or create active diet plan (simplified to work with existing schema)
-        let dietPlanResult = await pool.query(
-            `SELECT id, plan_name, start_date, end_date
-             FROM diet_plans 
-             WHERE user_id = $1 AND is_active = TRUE
-             ORDER BY created_at DESC
-             LIMIT 1`,
-            [userId]
-        );
-
+        // Get or create active diet plan (with error handling for missing table)
         let activePlan = null;
-        if (dietPlanResult.rows.length === 0) {
-            // Create new diet plan
-            const newPlanResult = await pool.query(
-                `INSERT INTO diet_plans 
-                    (user_id, plan_name, start_date, end_date, is_active, diet_style)
-                 VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', TRUE, $3)
-                 RETURNING id, plan_name, start_date, end_date`,
-                [
-                    userId,
-                    'AI-Powered Heart-Healthy Plan',
-                    'heart_healthy'
-                ]
+        try {
+            let dietPlanResult = await pool.query(
+                `SELECT id, plan_name, start_date, end_date
+                 FROM diet_plans 
+                 WHERE user_id = $1 AND is_active = TRUE
+                 ORDER BY created_at DESC
+                 LIMIT 1`,
+                [userId]
             );
-            activePlan = newPlanResult.rows[0];
-        } else {
-            activePlan = dietPlanResult.rows[0];
+
+            if (dietPlanResult.rows.length === 0) {
+                // Create new diet plan
+                const newPlanResult = await pool.query(
+                    `INSERT INTO diet_plans 
+                        (user_id, plan_name, start_date, end_date, is_active, diet_style)
+                     VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', TRUE, $3)
+                     RETURNING id, plan_name, start_date, end_date`,
+                    [
+                        userId,
+                        'AI-Powered Heart-Healthy Plan',
+                        'heart_healthy'
+                    ]
+                );
+                activePlan = newPlanResult.rows[0];
+            } else {
+                activePlan = dietPlanResult.rows[0];
+            }
+        } catch (dbError) {
+            console.log('⚠️ Diet plans table not available, skipping plan creation:', dbError.message);
+            // Continue without the diet plan - it's not critical
+            activePlan = {
+                id: null,
+                plan_name: 'Heart-Healthy Plan',
+                start_date: new Date(),
+                end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            };
         }
 
         console.log('📤 Sending response with recommendations...');
         const responseData = {
             recommendations,
-            activePlan: {
+            profileIncomplete,
+            activePlan: activePlan ? {
                 id: activePlan.id,
                 name: activePlan.plan_name,
                 startDate: activePlan.start_date,
                 endDate: activePlan.end_date
-            }
+            } : null
         };
         
         // Log response size for debugging
@@ -222,6 +283,57 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         });
     }
 });
+
+/**
+ * Build health context string for AI
+ */
+function buildHealthContext(profile, medical, medications, ecgTimeline) {
+    const lines = [];
+    
+    // Basic profile
+    lines.push(`**Patient Profile:**`);
+    if (profile.age) lines.push(`- Age: ${profile.age} years`);
+    if (profile.gender) lines.push(`- Gender: ${profile.gender}`);
+    if (profile.height_cm) lines.push(`- Height: ${profile.height_cm} cm`);
+    if (profile.weight_kg) lines.push(`- Weight: ${profile.weight_kg} kg`);
+    if (profile.height_cm && profile.weight_kg) {
+        const bmi = (profile.weight_kg / Math.pow(profile.height_cm / 100, 2)).toFixed(1);
+        lines.push(`- BMI: ${bmi}`);
+    }
+    
+    // Medical conditions
+    lines.push(`\n**Medical History:**`);
+    if (medical.has_hypertension) lines.push(`- Has hypertension (high blood pressure)`);
+    if (medical.has_diabetes) lines.push(`- Has diabetes`);
+    if (medical.has_high_cholesterol) lines.push(`- Has high cholesterol`);
+    if (medical.previous_heart_attack) lines.push(`- Previous heart attack`);
+    if (medical.previous_heart_failure) lines.push(`- Previous heart failure`);
+    if (medical.previous_angina) lines.push(`- History of angina`);
+    if (medical.previous_arrhythmia) lines.push(`- History of arrhythmia`);
+    if (medical.is_smoker) lines.push(`- Smoker`);
+    if (medical.family_history_heart_disease) lines.push(`- Family history of heart disease`);
+    
+    // Medications
+    if (medications && medications.length > 0) {
+        lines.push(`\n**Current Medications:**`);
+        medications.forEach(med => {
+            lines.push(`- ${med.medication_name} (${med.dosage}${med.unit}) for ${med.purpose || 'general'}`);
+        });
+    }
+    
+    // ECG data summary
+    if (ecgTimeline && ecgTimeline.length > 0) {
+        const avgHR = Math.round(
+            ecgTimeline.reduce((sum, r) => sum + (r.predictions?.heart_rate || 0), 0) / ecgTimeline.length
+        );
+        if (avgHR > 0) {
+            lines.push(`\n**ECG Summary:**`);
+            lines.push(`- Average heart rate (last 30 days): ${avgHR} bpm`);
+        }
+    }
+    
+    return lines.join('\n');
+}
 
 /**
  * Generate personalized diet recommendations

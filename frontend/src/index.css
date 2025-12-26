@@ -13,6 +13,13 @@
     background-attachment: fixed;
   }
   
+  /* Dark mode body styles */
+  .dark body,
+  html.dark body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #e5e7eb;
+  }
+  
   html {
     scroll-behavior: smooth;
   }
@@ -22,6 +29,10 @@
   /* Medical Card Styles */
   .medical-card {
     @apply bg-white rounded-xl shadow-card border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .dark .medical-card {
+    @apply bg-gray-800 border-gray-700;
   }
 
   /* Button Styles */

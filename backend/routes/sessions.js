@@ -134,13 +134,13 @@ router.post('/', authenticateToken, async (req, res) => {
       
       if (esp32Ws && esp32Ws.readyState === 1) { // 1 = OPEN
         const command = {
-          type: 'recording-started',
+          event: 'start-recording',  // Arduino expects 'event' not 'type'
           sessionId: newSession.id,
           sampleRate: sampleRate
         };
         console.log('📤 Sending command to ESP32:', command);
         esp32Ws.send(JSON.stringify(command));
-        console.log(`📡 Sent recording-started command to device: ${deviceId}`);
+        console.log(`📡 Sent start-recording command to device: ${deviceId}`);
       } else {
         console.warn(`⚠️ Device ${deviceId} not connected, cannot start recording`);
         console.warn(`   WebSocket state: ${esp32Ws ? esp32Ws.readyState : 'not found'}`);
@@ -220,10 +220,10 @@ router.put('/:id', async (req, res) => {
       
       if (esp32Ws && esp32Ws.readyState === 1) { // 1 = OPEN
         esp32Ws.send(JSON.stringify({
-          type: 'recording-stopped',
+          event: 'stop-recording',  // Arduino expects 'event' not 'type'
           sessionId: updatedSession.id
         }));
-        console.log(`📡 Sent recording-stopped command to device: ${updatedSession.device_id}`);
+        console.log(`📡 Sent stop-recording command to device: ${updatedSession.device_id}`);
       }
     }
     

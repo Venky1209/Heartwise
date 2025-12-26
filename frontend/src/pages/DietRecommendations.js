@@ -22,6 +22,8 @@ const DietRecommendations = () => {
   const [error, setError] = useState(null);
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
 
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+
   useEffect(() => {
     fetchRecommendations();
   }, []);
@@ -33,6 +35,7 @@ const DietRecommendations = () => {
       const response = await api.get('/diet/recommendations');
       setRecommendations(response.data.recommendations);
       setActivePlan(response.data.activePlan);
+      setProfileIncomplete(response.data.profileIncomplete || false);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load diet recommendations');
     } finally {
@@ -63,16 +66,60 @@ const DietRecommendations = () => {
 
   if (!recommendations) return null;
 
+  // Ensure all required fields have defaults to prevent rendering errors
+  const safeRecommendations = {
+    goals: recommendations.goals || ['Maintain heart health', 'Balanced nutrition'],
+    restrictions: recommendations.restrictions || ['Limit processed foods', 'Reduce sodium intake'],
+    nutrients: {
+      prioritize: recommendations.nutrients?.prioritize || ['Omega-3 fatty acids', 'Fiber', 'Potassium'],
+      limit: recommendations.nutrients?.limit || ['Sodium', 'Saturated fats'],
+      avoid: recommendations.nutrients?.avoid || ['Trans fats', 'Excessive sugar']
+    },
+    foodGroups: {
+      increase: recommendations.foodGroups?.increase || [],
+      reduce: recommendations.foodGroups?.reduce || []
+    },
+    mealPlan: {
+      breakfast: recommendations.mealPlan?.breakfast || [],
+      lunch: recommendations.mealPlan?.lunch || [],
+      dinner: recommendations.mealPlan?.dinner || [],
+      snacks: recommendations.mealPlan?.snacks || []
+    },
+    tips: recommendations.tips || ['Stay hydrated with 8 glasses of water daily'],
+    waterIntake: recommendations.waterIntake || '8-10 glasses per day'
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Profile Incomplete Warning */}
+      {profileIncomplete && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">👤</span>
+            <div>
+              <p className="font-semibold text-amber-800">Complete Your Profile for Personalized Recommendations</p>
+              <p className="text-amber-700 text-sm">
+                Add your age, weight, and health conditions to get AI-powered diet recommendations tailored just for you.
+              </p>
+              <a href="/profile" className="inline-block mt-2 text-amber-600 hover:text-amber-800 font-medium underline">
+                Go to Profile →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center">
           <SparklesIcon className="h-8 w-8 text-green-600 mr-3" />
-          Personalized Diet Recommendations
+          {profileIncomplete ? 'General Diet Recommendations' : 'Personalized Diet Recommendations'}
         </h1>
         <p className="mt-2 text-gray-600">
-          AI-powered nutrition guidance tailored to your heart health
+          {profileIncomplete 
+            ? 'Heart-healthy nutrition guidance for everyone' 
+            : 'AI-powered nutrition guidance tailored to your heart health'
+          }
         </p>
       </div>
 
@@ -85,7 +132,7 @@ const DietRecommendations = () => {
             <h2 className="text-xl font-bold text-gray-900">Your Health Goals</h2>
           </div>
           <ul className="space-y-2">
-            {recommendations.goals.map((goal, index) => (
+            {safeRecommendations.goals.map((goal, index) => (
               <li key={index} className="flex items-start">
                 <span className="text-green-600 mr-2">✓</span>
                 <span className="text-gray-700">{goal}</span>
@@ -101,7 +148,7 @@ const DietRecommendations = () => {
             <h2 className="text-xl font-bold text-gray-900">Dietary Guidelines</h2>
           </div>
           <ul className="space-y-2">
-            {recommendations.restrictions.map((restriction, index) => (
+            {safeRecommendations.restrictions.map((restriction, index) => (
               <li key={index} className="flex items-start">
                 <span className="text-yellow-600 mr-2">⚠</span>
                 <span className="text-gray-700">{restriction}</span>
@@ -111,7 +158,7 @@ const DietRecommendations = () => {
           <div className="mt-4 pt-4 border-t border-yellow-200">
             <div className="flex items-center text-sm text-gray-600">
               <FireIcon className="h-5 w-5 text-blue-500 mr-2" />
-              <span><strong>Hydration:</strong> {recommendations.waterIntake}</span>
+              <span><strong>Hydration:</strong> {safeRecommendations.waterIntake}</span>
             </div>
           </div>
         </div>
@@ -125,7 +172,7 @@ const DietRecommendations = () => {
           <div className="border-l-4 border-green-500 pl-4">
             <h3 className="font-semibold text-green-700 mb-2">✅ Prioritize</h3>
             <ul className="space-y-1">
-              {recommendations.nutrients.prioritize.map((nutrient, index) => (
+              {safeRecommendations.nutrients.prioritize.map((nutrient, index) => (
                 <li key={index} className="text-sm text-gray-700">{nutrient}</li>
               ))}
             </ul>
@@ -135,7 +182,7 @@ const DietRecommendations = () => {
           <div className="border-l-4 border-yellow-500 pl-4">
             <h3 className="font-semibold text-yellow-700 mb-2">⚠️ Limit</h3>
             <ul className="space-y-1">
-              {recommendations.nutrients.limit.map((nutrient, index) => (
+              {safeRecommendations.nutrients.limit.map((nutrient, index) => (
                 <li key={index} className="text-sm text-gray-700">{nutrient}</li>
               ))}
             </ul>
@@ -145,7 +192,7 @@ const DietRecommendations = () => {
           <div className="border-l-4 border-red-500 pl-4">
             <h3 className="font-semibold text-red-700 mb-2">❌ Avoid</h3>
             <ul className="space-y-1">
-              {recommendations.nutrients.avoid.map((nutrient, index) => (
+              {safeRecommendations.nutrients.avoid.map((nutrient, index) => (
                 <li key={index} className="text-sm text-gray-700">{nutrient}</li>
               ))}
             </ul>
@@ -158,14 +205,14 @@ const DietRecommendations = () => {
         <h2 className="text-xl font-bold text-gray-900 mb-6">Food Group Guidance</h2>
         
         {/* Increase */}
-        {recommendations.foodGroups.increase.length > 0 && (
+        {safeRecommendations.foodGroups.increase.length > 0 && (
           <div className="mb-6">
             <h3 className="font-semibold text-green-700 mb-3 flex items-center">
               <span className="text-2xl mr-2">📈</span>
               Increase These Foods
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendations.foodGroups.increase.map((group, index) => (
+              {safeRecommendations.foodGroups.increase.map((group, index) => (
                 <div key={index} className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <h4 className="font-semibold text-gray-900 mb-2">{group.name}</h4>
                   <p className="text-sm text-gray-600 mb-2">{group.benefit}</p>
@@ -183,14 +230,14 @@ const DietRecommendations = () => {
         )}
 
         {/* Reduce */}
-        {recommendations.foodGroups.reduce.length > 0 && (
+        {safeRecommendations.foodGroups.reduce.length > 0 && (
           <div>
             <h3 className="font-semibold text-red-700 mb-3 flex items-center">
               <span className="text-2xl mr-2">📉</span>
               Reduce These Foods
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendations.foodGroups.reduce.map((group, index) => (
+              {safeRecommendations.foodGroups.reduce.map((group, index) => (
                 <div key={index} className="bg-red-50 rounded-lg p-4 border border-red-200">
                   <h4 className="font-semibold text-gray-900 mb-2">{group.name}</h4>
                   <p className="text-sm text-gray-600 mb-2"><strong>Why:</strong> {group.reason}</p>
@@ -231,7 +278,7 @@ const DietRecommendations = () => {
 
         {/* Meal Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {recommendations.mealPlan[selectedMealType].map((meal, index) => (
+          {safeRecommendations.mealPlan[selectedMealType].map((meal, index) => (
             <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold text-gray-900">{meal.name}</h3>
@@ -257,7 +304,7 @@ const DietRecommendations = () => {
       <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">💡 Expert Tips</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {recommendations.tips.map((tip, index) => (
+          {safeRecommendations.tips.map((tip, index) => (
             <div key={index} className="flex items-start bg-white rounded-lg p-3">
               <span className="text-blue-600 font-bold mr-2">{index + 1}.</span>
               <span className="text-gray-700 text-sm">{tip}</span>

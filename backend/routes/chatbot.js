@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Import authenticateToken from auth.js
 const { authenticateToken } = require('./auth');
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Ollama API configuration
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b';
 
 // Conversation memory (in production, use Redis or database)
 const conversationMemory = new Map();
@@ -39,58 +39,68 @@ router.post('/', authenticateToken, async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Call ML service for RAG context
+    // Call ML service for RAG context (optional, may fail)
     let ragContext = '';
     try {
       const ragResponse = await axios.post('http://localhost:5002/api/ml/chat/context', {
         query: message,
         user_id: userId
-      });
+      }, { timeout: 5000 });
       ragContext = ragResponse.data.context || '';
     } catch (error) {
-      console.error('Error getting RAG context:', error.message);
+      console.log('⚠️ RAG context unavailable, proceeding without it');
     }
 
-    // Build context for Gemini
-    const systemPrompt = `You are HeartWise Medical AI Assistant, an expert in cardiovascular health. 
-You help patients understand their ECG results, manage their heart health, and answer medical questions.
+    // Build system prompt for Ollama
+    const systemPrompt = `You are HeartWise Medical AI Assistant, an expert in cardiovascular health.
 
-**Medical Knowledge Base:**
-${ragContext}
+RESPONSE FORMAT RULES:
+1. Use clear sections with emoji headers when appropriate
+2. Use bullet points (•) for lists
+3. Keep paragraphs short and readable
+4. Use **bold** for important terms
+5. Add line breaks between sections
+6. Be concise - aim for 3-5 sentences per section
 
-**Guidelines:**
-- Always be empathetic and supportive
-- Explain medical terms in simple language
-- Recommend seeing a doctor for serious concerns
-- Use the retrieved context to provide accurate information
-- Be concise but thorough
-- Never provide definitive diagnoses - always recommend professional medical consultation for concerns
+GUIDELINES:
+• Be empathetic and supportive
+• Explain medical terms simply
+• Recommend doctors for serious concerns
+• Never diagnose - suggest professional consultation
+• For emergencies (chest pain, severe symptoms), advise calling emergency services immediately
 
-**User Question:** ${message}
+${ragContext ? `MEDICAL CONTEXT:\n${ragContext}\n` : ''}`;
 
-**Instructions:** Provide a helpful, accurate, and compassionate response based on the medical knowledge above.`;
+    // Build messages array for Ollama (include conversation history)
+    const messages = [
+      { role: 'system', content: systemPrompt }
+    ];
+    
+    // Add last 10 messages from conversation history
+    const recentHistory = conversationHistory.slice(-10);
+    for (const msg of recentHistory) {
+      messages.push({
+        role: msg.role,
+        content: msg.content
+      });
+    }
 
-    // Initialize Gemini model (using gemini-pro)
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-    // Build conversation history for Gemini
-    const chatHistory = conversationHistory.slice(-10).map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content || '' }]
-    }));
-
-    // Start chat with history
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
+    console.log(`🤖 Calling Ollama (${OLLAMA_MODEL})...`);
+    
+    // Call Ollama API
+    const ollamaResponse = await axios.post(`${OLLAMA_URL}/api/chat`, {
+      model: OLLAMA_MODEL,
+      messages: messages,
+      stream: false,
+      options: {
         temperature: 0.7,
-        maxOutputTokens: 500,
-      },
-    });
+        top_p: 0.9,
+        num_predict: 500
+      }
+    }, { timeout: 60000 });
 
-    // Send message to Gemini
-    const result = await chat.sendMessage(systemPrompt);
-    const aiResponse = result.response.text();
+    const aiResponse = ollamaResponse.data.message?.content || 'Sorry, I could not generate a response.';
+    console.log('✅ Ollama response received');
 
     // Add AI response to conversation history
     conversationHistory.push({
@@ -105,12 +115,16 @@ ${ragContext}
     return res.json({
       message: aiResponse,
       conversation_id: conversationId,
-      model: 'gemini-pro'
+      model: OLLAMA_MODEL
     });
   } catch (error) {
-    console.error('Chatbot error:', error.message);
-    if (error.response) {
-      console.error('Gemini API error:', error.response);
+    console.error('❌ Chatbot error:', error.message);
+    if (error.code === 'ECONNREFUSED') {
+      console.error('⚠️ Ollama is not running. Start it with: ollama serve');
+      return res.status(503).json({ 
+        error: 'AI service unavailable. Please ensure Ollama is running.', 
+        details: 'Run "ollama serve" to start the Ollama service.'
+      });
     }
     res.status(500).json({ 
       error: 'Failed to process chat message', 

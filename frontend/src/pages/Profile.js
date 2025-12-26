@@ -509,7 +509,7 @@ const MedicalHistoryTab = ({ history, onUpdate, navigate }) => {
         <p className="text-gray-600 mb-4">Add your medical history for personalized insights</p>
         <button
           onClick={() => {
-            toast.info('Please use the Profile Complete wizard to add medical history');
+            toast('Please use the Profile Complete wizard to add medical history', { icon: 'ℹ️' });
             navigate('/profile/complete');
           }}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
@@ -1193,7 +1193,7 @@ const MedicationsTab = ({ medications, onUpdate }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Medications Recorded</h3>
         <p className="text-gray-600 mb-4">Track your current medications for better health management</p>
         <button
-          onClick={() => toast.info('Medication management feature coming soon!')}
+          onClick={() => toast('Medication management feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />
@@ -1211,7 +1211,7 @@ const MedicationsTab = ({ medications, onUpdate }) => {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Current Medications</h3>
         <button
-          onClick={() => toast.info('Medication management feature coming soon!')}
+          onClick={() => toast('Medication management feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />
@@ -1253,7 +1253,7 @@ const BaselineECGsTab = ({ baselineECGs, onUpdate }) => {
           Upload previous ECG reports for comparison with current readings
         </p>
         <button
-          onClick={() => toast.info('ECG upload feature coming soon!')}
+          onClick={() => toast('ECG upload feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />
@@ -1283,7 +1283,7 @@ const BaselineECGsTab = ({ baselineECGs, onUpdate }) => {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Previous ECG Records</h3>
         <button
-          onClick={() => toast.info('ECG upload feature coming soon!')}
+          onClick={() => toast('ECG upload feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />
@@ -1306,7 +1306,7 @@ const SymptomsTab = ({ symptoms, onUpdate }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Symptoms Logged</h3>
         <p className="text-gray-600 mb-4">Track symptoms to help identify patterns and triggers</p>
         <button
-          onClick={() => toast.info('Symptom logging feature coming soon!')}
+          onClick={() => toast('Symptom logging feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />
@@ -1321,7 +1321,7 @@ const SymptomsTab = ({ symptoms, onUpdate }) => {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Recent Symptoms</h3>
         <button
-          onClick={() => toast.info('Symptom logging feature coming soon!')}
+          onClick={() => toast('Symptom logging feature coming soon!', { icon: 'ℹ️' })}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
         >
           <PlusIcon className="h-5 w-5" />

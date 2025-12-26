@@ -95,19 +95,33 @@ How can I assist you today?`,
   };
 
   const formatMessage = (content) => {
-    // Format markdown-style text
-    return content
-      .split('\n')
-      .map((line, i) => {
-        // Bold
-        line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Bullet points
-        if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
-          return `<li key="${i}">${line.replace(/^[•-]\s*/, '')}</li>`;
-        }
-        return `<p key="${i}">${line}</p>`;
-      })
-      .join('');
+    // Enhanced markdown-style formatting
+    let html = content
+      // Escape HTML first
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Bold text **text**
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+      // Italic text *text*
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      // Code `text`
+      .replace(/`([^`]+)`/g, '<code class="bg-gray-200 px-1 rounded text-sm">$1</code>')
+      // Headers with emojis (like "❤️ Heart Rate:")
+      .replace(/^([\u{1F300}-\u{1F9FF}].*?)$/gmu, '<h4 class="font-semibold text-purple-700 mt-3 mb-1">$1</h4>')
+      // Numbered lists (1. 2. 3.)
+      .replace(/^(\d+)\.\s+(.*)$/gm, '<div class="flex ml-2 my-1"><span class="text-purple-600 font-medium mr-2">$1.</span><span>$2</span></div>')
+      // Bullet points (• or - or *)
+      .replace(/^[•\-*]\s+(.*)$/gm, '<div class="flex ml-2 my-1"><span class="text-purple-500 mr-2">•</span><span>$1</span></div>')
+      // Line breaks
+      .replace(/\n\n/g, '</p><p class="my-2">')
+      .replace(/\n/g, '<br/>');
+    
+    // Wrap in paragraph if not already structured
+    if (!html.startsWith('<')) {
+      html = `<p class="my-1">${html}</p>`;
+    }
+    
+    return html;
   };
 
   const MessageBubble = ({ message }) => {

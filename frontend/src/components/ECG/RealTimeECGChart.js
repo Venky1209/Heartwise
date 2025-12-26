@@ -25,8 +25,13 @@ ChartJS.register(
   TimeScale
 );
 
-const RealTimeECGChart = ({ sessionId, height = 400 }) => {
+const RealTimeECGChart = ({ sessionId, height = 400, externalData = null }) => {
   const { realtimeECGData, isConnected } = useSocket();
+  
+  // Use external data (BLE/USB) if provided, otherwise use Socket data (WiFi)
+  const ecgData = externalData && externalData.length > 0 ? externalData : realtimeECGData;
+  const isDataConnected = externalData ? externalData.length > 0 : isConnected;
+  
   const chartRef = useRef(null);
   const [xAxisRange, setXAxisRange] = useState({ min: null, max: null });
   const [chartData, setChartData] = useState({
@@ -175,12 +180,12 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
             if (!context.tick) return 'rgba(229, 231, 235, 0.2)';
             
             const value = context.tick.value;
-            // Darker lines every 0.5 mV (large box - standard ECG)
-            if (Math.abs(value % 0.5) < 0.01) {
+            // Darker lines every 500 mV (large box - 0.5mV in clinical terms)
+            if (Math.abs(value % 500) < 1) {
               return 'rgba(239, 68, 68, 0.4)'; // Red
             }
-            // Lighter lines every 0.1 mV (small box - standard ECG)
-            if (Math.abs(value % 0.1) < 0.01) {
+            // Lighter lines every 100 mV (small box - 0.1mV in clinical terms)
+            if (Math.abs(value % 100) < 1) {
               return 'rgba(252, 165, 165, 0.3)'; // Light red/pink
             }
             return 'rgba(229, 231, 235, 0.2)';
@@ -190,10 +195,10 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
             if (!context.tick) return 1;
             
             const value = context.tick.value;
-            if (Math.abs(value % 0.5) < 0.01) {
+            if (Math.abs(value % 500) < 1) {
               return 1.5;
             }
-            if (Math.abs(value % 0.1) < 0.01) {
+            if (Math.abs(value % 100) < 1) {
               return 0.8;
             }
             return 0.3;
@@ -201,14 +206,15 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         },
         ticks: {
           color: '#6b7280',
-          stepSize: 0.5, // Major ticks every 0.5 mV (standard ECG)
+          stepSize: 155, // ~10 steps for ±2mV range (typical ECG display)
           callback: function(value) {
-            return value.toFixed(1) + ' mV';
+            // Convert from raw mV to display value
+            return (value / 1000).toFixed(1) + ' mV';
           },
         },
-        // Auto-scale based on data range
-        min: undefined,
-        max: undefined,
+        // Fixed Y-axis for consistent ECG display (±2mV typical ECG range)
+        suggestedMin: -500,
+        suggestedMax: 500,
       },
     },
     elements: {
@@ -219,51 +225,44 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
   };
 
   useEffect(() => {
-    console.log('🎨 Chart update triggered, data length:', realtimeECGData.length);
+    // console.log('🎨 Chart update triggered, data length:', ecgData.length);
     
-    if (realtimeECGData.length > 0) {
-      console.log('📌 Sample data point:', realtimeECGData[0]);
-      console.log('🔍 Voltage values - First 5 points:', realtimeECGData.slice(0, 5).map(p => p.voltage));
-      console.log('🔍 Min voltage:', Math.min(...realtimeECGData.map(p => p.voltage)));
-      console.log('🔍 Max voltage:', Math.max(...realtimeECGData.map(p => p.voltage)));
+    if (ecgData.length > 0) {
+      const timeWindow = 5000; // Show last 5 seconds for better detail
       
-      const now = Date.now();
-      const timeWindow = 15000; // Show last 15 seconds (expanded for better visibility)
+      // Find the latest timestamp in the data
+      let latestTime = 0;
+      ecgData.forEach(point => {
+        const pointTime = point.displayTime || point.timestamp || 0;
+        if (pointTime > latestTime) latestTime = pointTime;
+      });
       
-      // Filter and map data using display time - keep only last 15 seconds
-      const filteredData = realtimeECGData
+      // If no valid timestamps, use current time
+      if (latestTime === 0) latestTime = Date.now();
+      
+      // Filter data to show only the last 5 seconds relative to latest data point
+      const cutoffTime = latestTime - timeWindow;
+      
+      const filteredData = ecgData
         .filter(point => {
-          // Use displayTime for filtering
-          const pointTime = point.displayTime || now;
-          return (now - pointTime) <= timeWindow;
+          const pointTime = point.displayTime || point.timestamp || 0;
+          return pointTime >= cutoffTime;
         })
         .map(point => {
-          // Use the display time for X-axis (properly spaced based on ESP32 timestamps)
-          const displayTime = point.displayTime || now;
-          // Scale voltage to normal ECG range (divide by 1000 for testing without proper electrodes)
-          // Normal ECG: -0.5 to +1.5 mV. Current readings are 1000x higher due to no electrode contact
-          const scaledVoltage = point.voltage / 1000;
+          const displayTime = point.displayTime || point.timestamp || latestTime;
+          const voltage = point.voltage || point.v || 0;
           return {
             x: new Date(displayTime),
-            y: scaledVoltage,
+            y: voltage,
           };
         })
         .sort((a, b) => a.x - b.x);
 
-      console.log('📊 Filtered data length:', filteredData.length);
-      console.log('📍 First filtered point:', filteredData[0]);
-      console.log('📍 Last filtered point:', filteredData[filteredData.length - 1]);
-      console.log('🔍 Y-axis range in filtered data:', {
-        min: Math.min(...filteredData.map(p => p.y)),
-        max: Math.max(...filteredData.map(p => p.y))
-      });
-
-      // Set scrolling X-axis range based on ACTUAL DATA, not current time
+      // Set scrolling X-axis range based on latest data
       if (filteredData.length > 0) {
-        const latestDataTime = filteredData[filteredData.length - 1].x.getTime();
         setXAxisRange({
-          min: latestDataTime - 5000,  // 5 seconds window for better visibility
-          max: latestDataTime + 500     // 0.5 second after latest data for smooth scrolling
+          min: latestTime - timeWindow,
+          max: latestTime + 200
         });
       }
 
@@ -300,13 +299,13 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         });
       }
     }
-  }, [realtimeECGData]);
+  }, [ecgData]);
 
   // NO continuous scrolling - chart only updates when new data arrives
 
   const findPeaks = (data) => {
     const peaks = [];
-    const threshold = 0.5; // Minimum peak height
+    const threshold = 50; // Minimum peak height in mV (for raw ESP32 values)
     
     for (let i = 1; i < data.length - 1; i++) {
       if (data[i] > data[i - 1] && data[i] > data[i + 1] && data[i] > threshold) {
@@ -333,9 +332,9 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
     const variance = voltages.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / voltages.length;
     const standardDeviation = Math.sqrt(variance);
     
-    // Simple quality metric based on signal-to-noise ratio
+    // Simple quality metric based on signal-to-noise ratio (adjusted for mV scale)
     const amplitude = Math.max(...voltages) - Math.min(...voltages);
-    const quality = Math.min(amplitude / (standardDeviation + 0.1), 1);
+    const quality = Math.min(amplitude / (standardDeviation + 10), 1); // Adjusted for mV values
     
     return quality;
   };
@@ -405,7 +404,7 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         <div className="text-center p-3 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-600">Data Points</p>
           <p className="text-2xl font-bold text-gray-900">
-            {realtimeECGData.length}
+            {ecgData.length}
           </p>
           <p className="text-xs text-gray-500">
             {stats.lastUpdate ? `Updated ${stats.lastUpdate.toLocaleTimeString()}` : 'No data'}
@@ -415,7 +414,7 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
 
       {/* ECG Chart */}
       <div className="ecg-container" style={{ height: `${height}px` }}>
-        {realtimeECGData.length > 0 ? (
+        {ecgData.length > 0 ? (
           <Line ref={chartRef} data={chartData} options={chartOptions} />
         ) : (
           <div className="h-full flex items-center justify-center bg-gray-50">
@@ -439,11 +438,11 @@ const RealTimeECGChart = ({ sessionId, height = 400 }) => {
         <div className="flex items-center space-x-4 text-sm text-gray-600">
           <span>Time Window: 5 seconds</span>
           <span>Sample Rate: 250 Hz</span>
-          <span>Voltage Range: ±2 mV</span>
+          <span>Voltage Range: ±500 mV</span>
         </div>
         
         <div className="flex items-center space-x-2">
-          {realtimeECGData.length > 0 && (
+          {ecgData.length > 0 && (
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-xs text-green-600">Live</span>
