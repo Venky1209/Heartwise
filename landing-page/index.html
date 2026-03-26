@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeartWise - The Future of Cardiac Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+</head>
+<body>
+    <div class="noise-overlay"></div>
+    <div class="ambient-light" id="ambientLight"></div>
+
+    <nav>
+        <div class="logo">
+            <div class="logo-icon-wrapper">
+                <i data-lucide="heart-pulse" class="brand-icon"></i>
+            </div>
+            <span>HeartWise</span>
+        </div>
+        <div class="nav-links">
+            <a href="#simulation">Simulation</a>
+            <a href="#education">Education</a>
+            <a href="#prevention">Prevention</a>
+            <a href="http://localhost:3000" class="btn-primary glow-effect">
+                <span>Launch App</span>
+                <i data-lucide="external-link" size="16"></i>
+            </a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <div class="badge-premium">
+                <span class="status-dot"></span>
+                <span class="badge-text">Next-Gen AI Diagnostics</span>
+            </div>
+            <h1 class="reveal-text">Listen to the <br> <span class="gradient-text-gold">Rhythm of Life.</span></h1>
+            <p class="hero-subtitle reveal-text">
+                Cardiovascular disease is the world's leading silent killer. HeartWise combines <strong>ESP32 IoT precision</strong> with <strong>Deep Learning</strong> to decode your heart's hidden signals before they become emergencies.
+            </p>
+            <div class="cta-group reveal-text">
+                <a href="#simulation" class="btn-primary large">
+                    Experience the Simulation <i data-lucide="activity"></i>
+                </a>
+            </div>
+        </div>
+        
+        <div class="hero-canvas-container">
+            <!-- Main ECG Canvas -->
+            <canvas id="heroECG"></canvas>
+            <div class="canvas-overlay">
+                <div class="live-tag">
+                    <span class="blink"></span> LIVE SENSOR FEED
+                </div>
+                <div class="bpm-counter">
+                    <span id="heroBPM">72</span> <span class="unit">BPM</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Interactive Simulation Section -->
+    <section id="simulation" class="interactive-section">
+        <div class="section-header center">
+            <h2 class="gradient-text-blue">Interactive Heart Model</h2>
+            <p>Drag the slider to understand how stress and pathology affect cardiac rhythm.</p>
+        </div>
+
+        <div class="sim-container glass-panel">
+            <div class="sim-controls">
+                <div class="control-group">
+                    <label>Heart Rate (BPM)</label>
+                    <input type="range" min="40" max="180" value="70" class="premium-slider" id="bpmSlider">
+                    <div class="slider-labels">
+                        <span>Bradycardia</span>
+                        <span>Normal</span>
+                        <span>Tachycardia</span>
+                    </div>
+                </div>
+                <div class="sim-info" id="simInfo">
+                    <h3 id="conditionTitle">Normal Sinus Rhythm</h3>
+                    <p id="conditionDesc">The heart is beating at a healthy, regular pace. Electrical impulses are synchronized.</p>
+                </div>
+            </div>
+            <div class="sim-visual">
+                <div class="heart-3d-wrapper">
+                    <i data-lucide="heart" class="heart-3d-icon" id="simHeart"></i>
+                    <div class="pulse-rings">
+                        <div class="ring r1"></div>
+                        <div class="ring r2"></div>
+                        <div class="ring r3"></div>
+                    </div>
+                </div>
+                <div class="ecg-scroller" id="scrollerContainer">
+                    <!-- Canvas injected by JS -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3D Educational Cards -->
+    <section id="education" class="education-section">
+        <div class="section-header">
+            <h2>Understanding the Silent Risks</h2>
+            <p>Knowledge is the best defense against Cardiovascular Disease (CVD).</p>
+        </div>
+
+        <div class="card-grid">
+            <!-- Card 1: Arrhythmia -->
+            <div class="tilt-card" data-tilt>
+                <div class="card-content">
+                    <div class="icon-sphere blue">
+                        <i data-lucide="zap"></i>
+                    </div>
+                    <h3>Arrhythmia</h3>
+                    <div class="stat-highlight">
+                        <span>Risk Factor</span>
+                        <strong>High</strong>
+                    </div>
+                    <p>An irregular heartbeat. It can lead to blood clots, stroke, and heart failure if left undetected.</p>
+                    <ul class="premium-list">
+                        <li><i data-lucide="check"></i> Palpitations</li>
+                        <li><i data-lucide="check"></i> Dizziness</li>
+                        <li><i data-lucide="check"></i> Detected by AI</li>
+                    </ul>
+                </div>
+                <div class="card-shine"></div>
+            </div>
+
+            <!-- Card 2: Ischemia -->
+            <div class="tilt-card" data-tilt>
+                <div class="card-content">
+                    <div class="icon-sphere red">
+                        <i data-lucide="droplet"></i>
+                    </div>
+                    <h3>Myocardial Ischemia</h3>
+                    <div class="stat-highlight">
+                        <span>Urgency</span>
+                        <strong>Critical</strong>
+                    </div>
+                    <p>Reduced blood flow to the heart, preventing the heart muscle from receiving enough oxygen.</p>
+                    <ul class="premium-list">
+                        <li><i data-lucide="check"></i> Chest Pain</li>
+                        <li><i data-lucide="check"></i> Fatigue</li>
+                        <li><i data-lucide="check"></i> ST-Segment Change</li>
+                    </ul>
+                </div>
+                <div class="card-shine"></div>
+            </div>
+
+            <!-- Card 3: Lifestyle -->
+            <div class="tilt-card" data-tilt>
+                <div class="card-content">
+                    <div class="icon-sphere green">
+                        <i data-lucide="leaf"></i>
+                    </div>
+                    <h3>Lifestyle & Diet</h3>
+                    <div class="stat-highlight">
+                        <span>Impact</span>
+                        <strong>Preventable</strong>
+                    </div>
+                    <p>80% of premature heart disease and strokes can be prevented through lifestyle changes.</p>
+                    <ul class="premium-list">
+                        <li><i data-lucide="check"></i> AI Diet Plans</li>
+                        <li><i data-lucide="check"></i> Stress Tracking</li>
+                        <li><i data-lucide="check"></i> Sleep Analysis</li>
+                    </ul>
+                </div>
+                <div class="card-shine"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Prevention/AI Section -->
+    <section id="prevention" class="ai-showcase">
+        <div class="ai-content-wrapper">
+            <div class="ai-text">
+                <h2>The AI Guardian</h2>
+                <h3>How HeartWise Protects You</h3>
+                <p>Our Neural Network doesn't just record data; it <span class="highlight">understands</span> it. By analyzing micro-patterns in your QRS complex, we provide clinical-grade insights at home.</p>
+                
+                <div class="feature-row">
+                    <div class="feature-item">
+                        <i data-lucide="brain-circuit"></i>
+                        <span>Deep Learning Analysis</span>
+                    </div>
+                    <div class="feature-item">
+                        <i data-lucide="shield-check"></i>
+                        <span>Real-time Alerts</span>
+                    </div>
+                    <div class="feature-item">
+                        <i data-lucide="file-bar-chart"></i>
+                        <span>Doctor-Ready Reports</span>
+                    </div>
+                </div>
+            </div>
+            <div class="ai-visual">
+                <div class="scanner-container">
+                    <div class="scan-line"></div>
+                    <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" alt="Medical Analysis" class="rounded-img">
+                    <div class="overlay-data">
+                        <div class="data-point p1">Confidence: 99.8%</div>
+                        <div class="data-point p2">Sinus Rhythm</div>
+                        <div class="data-point p3">No Anomalies</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section: Decoding the ECG (PQRST Interactive) -->
+    <section id="pqrst-guide" class="interactive-section dark-mode">
+        <div class="section-header center">
+            <h2 class="gradient-text-gold">Decoding the Signals</h2>
+            <p>Hover over the waveform to understand the electrical language of your heart.</p>
+        </div>
+
+        <div class="pqrst-container">
+            <div class="pqrst-visual">
+                <!-- SVG Interactive Wave -->
+                <svg viewBox="0 0 500 200" class="ecg-svg">
+                    <!-- Base Line -->
+                    <path class="ecg-line" d="M0,100 L50,100" />
+                    
+                    <!-- P Wave (Interactive) -->
+                    <g class="wave-group" data-wave="p">
+                        <path class="ecg-line highlightable" d="M50,100 Q70,70 90,100" />
+                        <circle cx="70" cy="85" r="15" class="interaction-point" />
+                        <text x="70" y="60" class="wave-label">P</text>
+                    </g>
+                    
+                    <!-- PR Segment -->
+                    <path class="ecg-line" d="M90,100 L110,100" />
+                    
+                    <!-- QRS Complex (Interactive) -->
+                    <g class="wave-group" data-wave="qrs">
+                        <path class="ecg-line highlightable" d="M110,100 L120,120 L135,20 L150,130 L160,100" />
+                        <circle cx="135" cy="70" r="25" class="interaction-point" />
+                        <text x="135" y="10" class="wave-label">QRS</text>
+                    </g>
+                    
+                    <!-- ST Segment -->
+                    <path class="ecg-line" d="M160,100 L190,100" />
+                    
+                    <!-- T Wave (Interactive) -->
+                    <g class="wave-group" data-wave="t">
+                        <path class="ecg-line highlightable" d="M190,100 Q220,60 250,100" />
+                        <circle cx="220" cy="80" r="15" class="interaction-point" />
+                        <text x="220" y="50" class="wave-label">T</text>
+                    </g>
+                    
+                    <!-- Isoline -->
+                    <path class="ecg-line" d="M250,100 L500,100" />
+                </svg>
+            </div>
+
+            <div class="pqrst-details" id="pqrstInfoPanel">
+                <div class="info-card active" id="info-p">
+                    <h3>P-Wave: The Atrial Spark</h3>
+                    <p class="med-desc">Represents the electrical activation (depolarization) of the atria—the upper chambers.</p>
+                    <div class="hazard-box warning">
+                        <h4>⚠️ Hazards if Abnormal</h4>
+                        <ul>
+                            <li><strong>Atrial Fibrillation:</strong> Missing or chaotic P-waves. Increases stroke risk by 5x.</li>
+                            <li><strong>Heart Block:</strong> Disconnected from QRS. Signals aren't reaching ventricles.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="info-card" id="info-qrs">
+                    <h3>QRS Complex: The Power Pump</h3>
+                    <p class="med-desc">The massive electrical discharge causing the ventricles (lower chambers) to contract and pump blood to the body.</p>
+                    <div class="hazard-box danger">
+                        <h4>⚠️ Hazards if Abnormal</h4>
+                        <ul>
+                            <li><strong>Wide QRS:</strong> Can indicate Bundle Branch Block or Ventricular Tachycardia (Cardiac Arrest risk).</li>
+                            <li><strong>High Amplitude:</strong> Sign of Ventricular Hypertrophy (enlarged heart).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card" id="info-t">
+                    <h3>T-Wave: The Reset</h3>
+                    <p class="med-desc">The recovery phase (repolarization) where the heart recharges for the next beat.</p>
+                    <div class="hazard-box critical">
+                        <h4>⚠️ Hazards if Abnormal</h4>
+                        <ul>
+                            <li><strong>Inverted T:</strong> Classic sign of Ischemia (Heart Attack in progress).</li>
+                            <li><strong>Peaked T:</strong> Hyperkalemia (High Potassium) - dangerous for rhythms.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section: Vascular Health (Interactive Artery) -->
+    <section id="vascular-health" class="vascular-section">
+        <div class="section-header">
+            <h2>The Silent Enemy: Plaque & Inflammation</h2>
+            <p>See how arteries clog over time due to inflammation and poor diet.</p>
+        </div>
+
+        <div class="split-layout">
+            <div class="visual-col">
+                <div class="artery-container">
+                    <div class="artery-wall top"></div>
+                    <div class="blood-flow">
+                        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                    </div>
+                    <div class="plaque top-plaque"></div>
+                    <div class="plaque bottom-plaque"></div>
+                    <div class="artery-wall bottom"></div>
+                </div>
+                <div class="slider-control">
+                    <label>Inflammation & Cholesterol Level: <span id="plaqueLevelVal">0%</span></label>
+                    <input type="range" class="premium-slider" id="plaqueSlider" min="0" max="100" value="0">
+                </div>
+            </div>
+            
+            <div class="text-col">
+                <div class="education-block">
+                    <h3>🔥 What is Inflammation?</h3>
+                    <p>Chronic inflammation damages the inner lining of arteries. Your body generates "plaque" (cholesterol, calcium, fat) to patch this damage, but this patch narrows the road.</p>
+                </div>
+                <div class="education-block">
+                    <h3>🍔 The Diet Connection</h3>
+                    <p>Processed foods, trans fats, and excess sugar trigger this inflammation.</p>
+                    <div class="good-bad-list">
+                        <div class="list-item bad">
+                            <i data-lucide="x-circle"></i>
+                            <span><strong>Avoid:</strong> Deep fried food, High Fructose Corn Syrup</span>
+                        </div>
+                        <div class="list-item good">
+                            <i data-lucide="check-circle"></i>
+                            <span><strong>Eat:</strong> Omega-3 (Salmon), Berries (Antioxidants), Leafy Greens</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section: Emergency Response -->
+    <section id="emergency" class="emergency-section">
+        <div class="section-header center">
+            <h2 class="text-danger">In Case of Emergency</h2>
+            <p>Recognize the signs. Act fast. Time is muscle.</p>
+        </div>
+
+        <div class="emergency-grid">
+            <div class="emerg-card">
+                <div class="emerg-icon pulse-red"><i data-lucide="alert-triangle"></i></div>
+                <h3>1. Recognize</h3>
+                <p>Chest pressure/pain, shortness of breath, cold sweat, nausea.</p>
+            </div>
+            <div class="emerg-card">
+                <div class="emerg-icon"><i data-lucide="phone-call"></i></div>
+                <h3>2. Call</h3>
+                <p>Dial Emergency Services immediately. Do not drive yourself.</p>
+            </div>
+            <div class="emerg-card">
+                <div class="emerg-icon"><i data-lucide="pill"></i></div>
+                <h3>3. Aspirin</h3>
+                <p>Chew 325mg Aspirin (if not allergic) to slow clot formation.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <i data-lucide="heart-pulse"></i>
+                <span>HeartWise</span>
+            </div>
+            <div class="footer-msg">
+                <p>Designed for the Heart. Powered by Intelligence.</p>
+            </div>
+            <div class="credit">
+                &copy; 2026 HeartWise Project
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
