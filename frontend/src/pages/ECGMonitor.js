@@ -58,53 +58,59 @@ const ECGMonitor = () => {
     }
   }, []);
 
-  // Handle USB data received
+  // Handle USB data received - Enhanced for real-time display
   const handleUSBData = useCallback((data) => {
-    // Accept data in multiple formats:
-    // 1. { type: 'ecg-data', data: [...] } - standard format
-    // 2. { data: [...] } - simplified format
-    // 3. Skip status/info messages
-    
-    console.log('📥 USB received:', data.type, data.data?.length || 0);
-    
-    if (data.type === 'status' || data.type === 'register' || data.type === 'heartbeat' || data.status || data.type === 'device-info') {
-      console.log('  (status/info, skipping)');
+    // Skip status messages
+    if (data.type === 'status' || data.type === 'register' || data.type === 'heartbeat' || data.type === 'device-info') {
       return;
     }
-    
+
     // Extract data array from various formats
     let dataArray = null;
-    if (data.data && Array.isArray(data.data)) {
+    
+    if (data.type === 'ecg-data' && data.data && Array.isArray(data.data)) {
+      dataArray = data.data;
+    } else if (data.data && Array.isArray(data.data)) {
       dataArray = data.data;
     } else if (Array.isArray(data)) {
       dataArray = data;
+    } else if (data.voltage !== undefined || data.raw !== undefined) {
+      // Single sample
+      dataArray = [data];
     }
-    
-    if (dataArray && dataArray.length > 0) {
-      console.log('  Processing', dataArray.length, 'samples');
-      const firstPoint = dataArray[0];
-      const lastPoint = dataArray[dataArray.length - 1];
-      console.log('  First point: V=' + firstPoint.voltage + ' mV, Q=' + firstPoint.quality + ', LO=' + firstPoint.leadsOff);
-      console.log('  Last point: V=' + lastPoint.voltage + ' mV, Q=' + lastPoint.quality + ', LO=' + lastPoint.leadsOff);
+
+    if (!dataArray || dataArray.length === 0) {
+      return;
+    }
+
+    // Convert raw ADC values to voltage if needed
+    const VOLTAGE_REF = 3.3;
+    const ADC_MAX = 4095;
+
+    const now = Date.now();
+    const dataWithDisplayTime = dataArray.map((point, index) => {
+      let voltage = point.voltage;
       
-      const now = Date.now();
-      const dataWithDisplayTime = dataArray.map((point, index) => ({
+      // Convert raw ADC to voltage if needed
+      if (voltage === undefined && point.raw !== undefined) {
+        const rawVoltage = (point.raw / ADC_MAX) * VOLTAGE_REF;
+        voltage = (rawVoltage - (VOLTAGE_REF / 2.0)) * 1000.0;
+      }
+
+      return {
         ...point,
-        voltage: point.voltage ?? point.v ?? 0,
-        displayTime: now - ((dataArray.length - 1 - index) * 4),
-      }));
-      
-      console.log('  Data points mapped with displayTime:', {
-        firstTime: new Date(dataWithDisplayTime[0].displayTime).toLocaleTimeString(),
-        lastTime: new Date(dataWithDisplayTime[dataWithDisplayTime.length - 1].displayTime).toLocaleTimeString()
-      });
-      
-      setBleData(prev => {
-        const newData = [...prev, ...dataWithDisplayTime];
-        console.log('  Total bleData now:', newData.length, 'points');
-        return newData.slice(-7500);
-      });
-    }
+        voltage: voltage ?? 0,
+        quality: point.quality ?? 30,
+        leadsOff: point.leadsOff ?? false,
+        displayTime: now - ((dataArray.length - 1 - index) * 4), // 4ms intervals at 250Hz
+      };
+    });
+
+    setBleData(prev => {
+      const newData = [...prev, ...dataWithDisplayTime];
+      // Keep last 7500 points (30 seconds at 250 Hz) for smooth scrolling
+      return newData.slice(-7500);
+    });
   }, []);
 
   useEffect(() => {

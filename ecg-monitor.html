@@ -468,16 +468,30 @@
                             try {
                                 const data = JSON.parse(line.trim());
                                 
-                                // Handle batch data from ESP32
-                                if (data.data && Array.isArray(data.data)) {
+                                // Handle different message types from ESP32
+                                if (data.type === 'ecg-data' && data.data && Array.isArray(data.data)) {
+                                    // Batched format from MULTIMODE firmware
+                                    console.log('📊 ECG Batch:', data.data.length, 'samples');
                                     data.data.forEach(sample => {
                                         if (isRecording) {
                                             addDataPoint(sample);
                                         }
                                     });
+                                } else if (Array.isArray(data)) {
+                                    // Array format
+                                    data.forEach(sample => {
+                                        if (isRecording) {
+                                            addDataPoint(sample);
+                                        }
+                                    });
+                                } else if (data.voltage !== undefined || data.raw !== undefined) {
+                                    // Individual sample format from Ultra_Simple firmware
+                                    if (isRecording) {
+                                        addDataPoint(data);
+                                    }
                                 }
                             } catch (e) {
-                                // JSON parse error - ignore
+                                // JSON parse error - ignore malformed lines
                             }
                         }
                     }
@@ -488,6 +502,7 @@
                 }
             } finally {
                 isConnected = false;
+                isRecording = false;
                 updateUI();
                 document.getElementById('connectionStatus').textContent = 'Disconnected';
                 document.getElementById('statusIndicator').classList.remove('active');
@@ -496,13 +511,24 @@
         }
 
         function addDataPoint(sample) {
-            const voltage = sample.voltage || 0;
+            // Handle voltage field or raw ADC value
+            let voltage = sample.voltage;
+            
+            // If only raw ADC value provided, convert it
+            if (voltage === undefined && sample.raw !== undefined) {
+                const VOLTAGE_REF = 3.3;
+                const ADC_MAX = 4095;
+                const rawVoltage = (sample.raw / ADC_MAX) * VOLTAGE_REF;
+                voltage = (rawVoltage - (VOLTAGE_REF / 2.0)) * 1000.0;
+            }
+            
+            voltage = voltage ?? 0;
             const time = Date.now();
 
             ecgData.push({
                 time: time,
                 voltage: voltage,
-                leadsOff: sample.leadsOff || false
+                leadsOff: sample.leadsOff ?? false
             });
 
             // Keep only last 1250 points (5 seconds at 250 Hz)
@@ -510,8 +536,13 @@
                 ecgData.shift();
             }
 
-            updateChart();
-            updateStats();
+            // Update chart every 10 samples for smooth real-time update
+            if (ecgData.length % 10 === 0) {
+                updateChart();
+                updateStats();
+            } else if (ecgData.length % 5 === 0) {
+                updateStats();
+            }
         }
 
         function updateChart() {

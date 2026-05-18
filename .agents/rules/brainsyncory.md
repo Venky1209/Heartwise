@@ -1,7 +1,7 @@
 
 
 # Project Memory — Heartwise
-> 998 notes | Score threshold: >40
+> 1069 notes | Score threshold: >40
 
 ## Safety — Never Run Destructive Commands
 
@@ -20,38 +20,42 @@
 
 ## 📝 NOTE: 1 uncommitted file(s) in working tree.\n\n## Important Warnings
 
-- **gotcha in test-usb-data.py** — File updated (external): test-usb-data.py
+- **⚠️ GOTCHA: Fixed null crash in Reader — offloads heavy computation off the main thread** — -     const reader = port.readable.getReader();
++     console.log('🔌 
+- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed** — - > 1060 notes | Score threshold: >40
++ > 1062 notes | Score threshold
+- **⚠️ GOTCHA: Optimized Score** — - > 1056 notes | Score threshold: >40
++ > 1060 notes | Score threshold
+- **⚠️ GOTCHA: Optimized Score** — - > 1039 notes | Score threshold: >40
++ > 1056 notes | Score threshold
+- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed** — - > 1033 notes | Score threshold: >40
++ > 1039 notes | Score threshold
+- **gotcha in shared-context.json** — -     }
++     },
+-   ]
++     {
+- }
++       "id": "3ab88f1beb86d71b",
++
 
-Content summary (61 lines):
-- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed** — - > 973 notes | Score threshold: >40
-+ > 978 notes | Score threshold: 
-- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed** — - > 957 notes | Score threshold: >40
-+ > 973 notes | Score threshold: 
-- **gotcha in frontend.log** — - [baseline-browser-mapping] The data in this module is over two month
-- **gotcha in frontend.log** — File updated (external): logs/frontend.log
+## Active: `frontend/src/pages`
 
-Content summary (25 lines)
-- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed** — - > 942 notes | Score threshold: >40
-+ > 951 notes | Score threshold: 
-
-## Active: `.`
-
-- **gotcha in test-usb-data.py**
-- **convention in PAD_PLACEMENT_VISUAL_GUIDE.md**
-- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed**
-- **⚠️ GOTCHA: Optimized Score — parallelizes async operations for speed**
-- **gotcha in frontend.log**
+- **Added session cookies authentication — prevents null/undefined runtime crashes — confirmed 4x**
+- **Fixed null crash in Refs — avoids unnecessary re-renders in React — confirmed 8x**
+- **what-changed in ECGMonitor.js — confirmed 3x**
+- **Fixed null crash in WiFi — prevents null/undefined runtime crashes — confirmed 8x**
+- **decision in ECGMonitor.js**
 
 ## Project Standards
 
-- convention in PAD_PLACEMENT_VISUAL_GUIDE.md
-- convention in .gitignore
-- what-changed in shared-context.json — confirmed 6x
-- Updated schema Baseline — confirmed 3x
-- what-changed in landing-page.log — confirmed 5x
-- decision in backend.log — confirmed 3x
-- what-changed in shared-context.json — confirmed 3x
-- Optimized GOTCHA — confirmed 3x
+- Added session cookies authentication — prevents null/undefined runtime crashes — confirmed 4x
+- Fixed null crash in Refs — avoids unnecessary re-renders in React — confirmed 8x
+- what-changed in ECGMonitor.js — confirmed 3x
+- Fixed null crash in WiFi — prevents null/undefined runtime crashes — confirmed 8x
+- Added JWT tokens authentication — confirmed 3x
+- what-changed in shared-context.json — confirmed 8x
+- problem-fix in agent-rules.md — confirmed 6x
+- problem-fix in shared-context.json — confirmed 3x
 
 ## Known Fixes
 
@@ -63,7 +67,7 @@ Content summary (25 lines)
 
 ## Recent Decisions
 
-- decision in backend.log
+- decision in ECGMonitor.js
 - decision in backend.log
 - decision in backend.log
 - decision in backend.log

@@ -1,48 +1,77 @@
 > **BrainSync Context Pumper** 🧠
-> Dynamically loaded for active file: `ecg-monitor.html` (Domain: **Generic Logic**)
+> Dynamically loaded for active file: `frontend/src/pages/ECGMonitor.js` (Domain: **Frontend (React/UI)**)
 
-### 📐 Generic Logic Conventions & Fixes
-- **[what-changed] what-changed in ecg-monitor.html**: File updated (external): ecg-monitor.html
+### 📐 Frontend (React/UI) Conventions & Fixes
+- **[problem-fix] Fixed null crash in Handle — avoids unnecessary re-renders in React**: -   // Handle USB data received
++   // Handle USB data received - Enhanced for real-time display
+-   const handleUSBData = useCallback((data) => {
++   const handleUSBData = useCallback((dataArray) => {
+-     // Accept data in multiple formats:
++     // Handle array of samples from USB
+-     // 1. { type: 'ecg-data', data: [...] } - standard format
++     if (!Array.isArray(dataArray) || dataArray.length === 0) {
+-     // 2. { data: [...] } - simplified format
++       return;
+-     // 3. Skip status/info messages
++     }
+-     
++ 
+-     console.log('📥 USB received:', data.type, data.data?.length || 0);
++     // Convert raw ADC values to voltage if needed
+-     
++     const VOLTAGE_REF = 3.3;
+-     if (data.type === 'status' || data.type === 'register' || data.type === 'heartbeat' || data.status || data.type === 'device-info') {
++     const ADC_MAX = 4095;
+-       console.log('  (status/info, skipping)');
++ 
+-       return;
++     const now = Date.now();
+-     }
++     const dataWithDisplayTime = dataArray.map((point, index) => {
+-     
++       let voltage = point.voltage;
+-     // Extract data array from various formats
++       
+-     let dataArray = null;
++       // Convert raw ADC to voltage if needed
+-     if (data.data && Array.isArray(data.data)) {
++       if (voltage === undefined && point.raw !== undefined) {
+-       dataArray = data.data;
++         const rawVoltage = (point.raw / ADC_MAX) * VOLTAGE_REF;
+-     } else if (Array.isArray(data)) {
++         voltage = (rawVoltage - (VOLTAGE_REF / 2.0)) * 1000.0;
+-       dataArray = data;
++       }
+-     }
++ 
+-     
++       return {
+-     if (dataArray && dataArray.length > 0) {
++         ...point,
+-       console.log('  Processing', dataArray.length, 'samples');
++         voltage: voltage ?? 0,
+-       const firstPoint = dataArray[0];
++         quality: point.quality ?? 30,
+-       const lastPoint = dataArray[dataArray.length - 1];
++         leadsOff: point.leadsOff ?? false,
+-       console.log('  First point: V=' +
+… [diff truncated]
 
-Content summary (583 lines):
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HeartWise ECG Monitor - Real-Time Display</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+📌 IDE AST Context: Modified symbols likely include [ECGMonitor, default]
+- **[what-changed] what-changed in useUSBECG.js**: File updated (external): frontend/src/hooks/useUSBECG.js
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-se
-- **[what-changed] what-changed in view_ecg_output.py**: File updated (external): view_ecg_output.py
+Content summary (148 lines):
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 
-Content summary (123 lines):
-#!/usr/bin/env python3
-"""
-HeartWise ECG Monitor - Serial Data Viewer
-Reads JSON data from ESP32 and displays it in real-time
-"""
+/**
+ * USB Serial ECG Data Handler
+ * Handles Web Serial API connection and provides data to React component
+ */
+const USBECGHandler = ({ onDataReceived, onConnectionChange, enabled = true }) => {
+  const [isConnected, setIsConnected] = useState(false);
+  const portRef = useRef(null);
+  const readerRef = useRef(null);
+  const isReadingRef = useRef(false);
 
-import serial
-import json
-import time
-from datetime import datetime
-
-PORT = '/dev/cu.usbserial-10'
-BAUD = 115200
-
-def main():
-    try:
-        ser = serial.Serial(PORT, BAUD, timeout=1)
-        print("✅ Connected to ESP32\n")
-        time.sleep(2)  # Wait for Arduino to initialize
-        
-        print("=" * 80)
-        print("📊 HeartWise ECG Monitor - Real-Time Da
+  // Connect to USB device
+  const connect = useCallback(async () =
