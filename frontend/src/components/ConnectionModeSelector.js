@@ -81,8 +81,7 @@ const ConnectionModeSelector = ({
           if (!serialPortRef.current || !usbConnected) return false;
           try {
             const writer = serialPortRef.current.writable.getWriter();
-            // Send START command (simple text that ESP32 will accept even with toUpperCase)
-            // This works because ESP32 checks for "START" string directly
+            // Send simple START command that ESP32 can reliably parse
             await writer.write(new TextEncoder().encode('START\n'));
             writer.releaseLock();
             toast.success('USB recording started');
@@ -97,7 +96,7 @@ const ConnectionModeSelector = ({
           if (!serialPortRef.current || !usbConnected) return false;
           try {
             const writer = serialPortRef.current.writable.getWriter();
-            // Send STOP command (simple text)
+            // Send simple STOP command
             await writer.write(new TextEncoder().encode('STOP\n'));
             writer.releaseLock();
             toast.success('USB recording stopped');
@@ -217,19 +216,38 @@ const ConnectionModeSelector = ({
     const text = new TextDecoder().decode(value);
 
     try {
-      const data = JSON.parse(text);
-      // Add displayTime to each data point (ESP32 timestamp is device uptime, not real time)
-      if (data.data && Array.isArray(data.data)) {
+      const rawData = JSON.parse(text);
+      console.log('BLE raw data:', text.substring(0, 100));
+      
+      // Handle compact BLE format: {"sid":"xxx","d":[{"t":123,"v":150,"q":80},...]}
+      // Convert to standard format: {"data":[{"timestamp":123,"voltage":1.5,"quality":80},...]}
+      let data = rawData;
+      
+      if (rawData.d && Array.isArray(rawData.d)) {
+        // Convert compact BLE format to standard format
         const now = Date.now();
-        const baseTime = data.data[0]?.timestamp || 0;
+        data = {
+          sessionId: rawData.sid,
+          data: rawData.d.map((point, index) => ({
+            timestamp: point.t,
+            voltage: point.v / 10, // BLE sends voltage * 10 as integer
+            quality: point.q,
+            leadsOff: false,
+            displayTime: now - ((rawData.d.length - 1 - index) * 4), // 4ms between samples at 250Hz
+          }))
+        };
+      } else if (data.data && Array.isArray(data.data)) {
+        // Standard format - add displayTime
+        const now = Date.now();
         data.data = data.data.map((point, index) => ({
           ...point,
-          displayTime: now - ((data.data.length - 1 - index) * 4), // 4ms between samples at 250Hz
+          displayTime: now - ((data.data.length - 1 - index) * 4),
         }));
       }
+      
       onBLEData?.(data);
     } catch (error) {
-      console.error('Failed to parse BLE data:', error);
+      console.error('Failed to parse BLE data:', error, text);
     }
   };
 
@@ -254,8 +272,11 @@ const ConnectionModeSelector = ({
     }
 
     try {
+      console.log('🔌 [USB] Requesting port...');
       const port = await navigator.serial.requestPort();
+      console.log('🔌 [USB] Port selected, opening...');
       await port.open({ baudRate: 115200 });
+      console.log('🔌 [USB] Port opened, starting reader...');
       
       serialPortRef.current = port;
       setUsbConnected(true);
@@ -266,7 +287,7 @@ const ConnectionModeSelector = ({
       readUSBSerial(port);
 
     } catch (error) {
-      console.error('USB connection error:', error);
+      console.error('🔌 [USB] Connection error:', error);
       if (error.name !== 'NotFoundError') {
         toast.error(`USB connection failed: ${error.message}`);
       }
@@ -274,11 +295,13 @@ const ConnectionModeSelector = ({
   };
 
   const readUSBSerial = async (port) => {
+    console.log('🔌 [USB] Reader starting...');
     const reader = port.readable.getReader();
     serialReaderRef.current = reader;
     
     let buffer = '';
     const decoder = new TextDecoder();
+    let lineCount = 0;
 
     try {
       while (true) {
@@ -295,18 +318,23 @@ const ConnectionModeSelector = ({
           if (line.trim().startsWith('{')) {
             try {
               const data = JSON.parse(line.trim());
+              lineCount++;
+              if (lineCount % 10 === 1) {
+                console.log('🔌 [USB] Received:', data.type, 'line#' + lineCount);
+              }
               onUSBData?.(data);
             } catch (e) {
-              console.log('USB:', line.trim());
+              console.log('🔌 [USB] Parse error:', line.trim().substring(0, 50));
             }
           }
         }
       }
     } catch (error) {
       if (error.name !== 'NetworkError') {
-        console.error('USB read error:', error);
+        console.error('🔌 [USB] Read error:', error);
       }
     } finally {
+      console.log('🔌 [USB] Reader ended');
       reader.releaseLock();
     }
   };

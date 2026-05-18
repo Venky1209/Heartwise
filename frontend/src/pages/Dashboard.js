@@ -132,7 +132,13 @@ const Dashboard = () => {
         {/* Header with Motivational Quote */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent font-display">
+            <h1 className="text-4xl font-bold font-display"
+                style={{
+                  background: 'linear-gradient(135deg, #F0ABFC, #E879F9)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>
               Dashboard
             </h1>
             <p className="mt-2 text-gray-600">

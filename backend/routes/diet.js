@@ -78,21 +78,21 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
             [userId]
         );
 
-        // Get ECG timeline (last 30 days) - using ecg_comparison_results which has user_id
-        // If no data, we'll just use empty array
+        // Get ECG timeline (last 30 days) - using ecg_analysis_results with session join
         const ecgTimelineResult = await pool.query(
             `SELECT 
-                comparison_id as session_id,
-                comparison_results as predictions,
-                comparison_date as processed_at
-             FROM ecg_comparison_results
-             WHERE user_id = $1 
-               AND comparison_date >= NOW() - INTERVAL '30 days'
-             ORDER BY comparison_date DESC
+                ear.id as session_id,
+                ear.predictions,
+                ear.processed_at
+             FROM ecg_analysis_results ear
+             JOIN ecg_sessions es ON ear.session_id = es.id
+             WHERE es.user_id = $1 
+               AND ear.processed_at >= NOW() - INTERVAL '30 days'
+             ORDER BY ear.processed_at DESC
              LIMIT 50`,
             [userId]
         ).catch(err => {
-            console.log('📊 No ECG comparison data available, using empty timeline');
+            console.log('📊 No ECG analysis data available, using empty timeline');
             return { rows: [] };
         });
 
@@ -615,134 +615,5 @@ router.get('/meal-history', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve meal history' });
     }
 });
-
-/**
- * Get general healthy diet recommendations when profile is incomplete
- */
-function getGeneralHealthyDietRecommendations() {
-    return {
-        goals: [
-            'Maintain heart health',
-            'Support overall wellness',
-            'Balanced nutrition'
-        ],
-        restrictions: [
-            'Limit processed foods',
-            'Reduce excess sodium',
-            'Minimize added sugars'
-        ],
-        nutrients: {
-            prioritize: [
-                'Omega-3 Fatty Acids',
-                'Fiber',
-                'Potassium',
-                'Antioxidants',
-                'Vitamins & Minerals'
-            ],
-            limit: [
-                'Saturated Fats',
-                'Sodium',
-                'Added Sugars'
-            ],
-            avoid: [
-                'Trans Fats',
-                'Excessive Sodium',
-                'Processed Foods'
-            ]
-        },
-        foodGroups: {
-            increase: [
-                {
-                    name: 'Fruits & Vegetables',
-                    benefit: 'Rich in vitamins, minerals, and antioxidants',
-                    examples: ['Leafy greens', 'Berries', 'Citrus fruits', 'Cruciferous vegetables']
-                },
-                {
-                    name: 'Whole Grains',
-                    benefit: 'Provide sustained energy and fiber',
-                    examples: ['Brown rice', 'Quinoa', 'Oats', 'Whole wheat bread']
-                },
-                {
-                    name: 'Lean Proteins',
-                    benefit: 'Essential for tissue repair and satiety',
-                    examples: ['Fish', 'Chicken breast', 'Legumes', 'Tofu']
-                },
-                {
-                    name: 'Healthy Fats',
-                    benefit: 'Support heart health and nutrient absorption',
-                    examples: ['Olive oil', 'Avocados', 'Nuts', 'Seeds']
-                }
-            ],
-            moderate: [],
-            reduce: []
-        },
-        mealPlan: {
-            breakfast: [
-                {
-                    name: 'Oatmeal with Berries',
-                    description: 'Steel-cut oats topped with mixed berries and almonds',
-                    calories: 280,
-                    hearthealthy: true
-                },
-                {
-                    name: 'Veggie Omelet',
-                    description: 'Egg white omelet with spinach, tomatoes, and mushrooms',
-                    calories: 220,
-                    hearthealthy: true
-                }
-            ],
-            lunch: [
-                {
-                    name: 'Grilled Chicken Salad',
-                    description: 'Mixed greens with grilled chicken, vegetables, and olive oil dressing',
-                    calories: 380,
-                    hearthealthy: true
-                },
-                {
-                    name: 'Quinoa Bowl',
-                    description: 'Quinoa with roasted vegetables and chickpeas',
-                    calories: 350,
-                    hearthealthy: true
-                }
-            ],
-            dinner: [
-                {
-                    name: 'Baked Salmon',
-                    description: 'Wild-caught salmon with steamed broccoli and brown rice',
-                    calories: 420,
-                    hearthealthy: true
-                },
-                {
-                    name: 'Mediterranean Bowl',
-                    description: 'Whole grain pasta with vegetables, olive oil, and herbs',
-                    calories: 400,
-                    hearthealthy: true
-                }
-            ],
-            snacks: [
-                {
-                    name: 'Mixed Nuts',
-                    description: 'Handful of unsalted almonds and walnuts',
-                    calories: 160,
-                    hearthealthy: true
-                },
-                {
-                    name: 'Fresh Fruit',
-                    description: 'Apple or banana with almond butter',
-                    calories: 150,
-                    hearthealthy: true
-                }
-            ]
-        },
-        tips: [
-            '🍎 Fill half your plate with colorful fruits and vegetables',
-            '🥗 Choose whole grains over refined grains whenever possible',
-            '🐟 Include fatty fish (like salmon) at least twice per week',
-            '🥜 Snack on nuts and seeds for healthy fats and protein',
-            '💧 Stay hydrated with plenty of water throughout the day',
-            '🧂 Read nutrition labels and limit sodium to 2,300mg per day'
-        ]
-    };
-}
 
 module.exports = router;

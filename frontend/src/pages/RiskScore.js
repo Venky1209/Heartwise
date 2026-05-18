@@ -35,7 +35,8 @@ const RiskScoreDashboard = () => {
       const response = await api.get('/risk/latest');
       setRiskData(response.data);
     } catch (err) {
-      if (err.response?.status === 404) {
+      // Treat 404 and 500 (missing tables) as "no data yet" — show empty state
+      if (err.response?.status === 404 || err.response?.status === 500) {
         setError('No risk assessment yet');
       } else {
         setError('Failed to load risk data');

@@ -30,7 +30,7 @@
 
 // ====== CONNECTION MODE ======
 // 0 = WiFi (default), 1 = BLE, 2 = USB Serial
-#define CONNECTION_MODE 0
+#define CONNECTION_MODE 2
 
 // ====== WIFI CONFIGURATION ======
 const char* WIFI_SSID = "csec";
@@ -52,10 +52,10 @@ const int SERVER_PORT = 5001;
 const char* DEVICE_NAME = "HeartWise-ESP32";
 
 // ====== PIN DEFINITIONS ======
-const int ECG_PIN = 36;
+const int ECG_PIN = 34;
 const int LO_MINUS_PIN = 2;
 const int LO_PLUS_PIN = 4;
-const int LED_PIN = 2;
+const int LED_PIN = 13;      // Use GPIO13 for LED (not GPIO2 which is LO-)
 const int MODE_BUTTON_PIN = 0;  // BOOT button
 
 // ====== ECG SAMPLING ======
@@ -119,7 +119,7 @@ class ServerCallbacks: public BLEServerCallbacks {
 
 class ControlCallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
-    String value = pCharacteristic->getValue().c_str();
+    String value = String(pCharacteristic->getValue().c_str());
     if (value.length() > 0) {
       Serial.print("📥 BLE Command: ");
       Serial.println(value.c_str());
@@ -489,8 +489,7 @@ void handleUSBCommand(String command) {
     if (!error) {
       const char* cmd = doc["cmd"] | "";
       if (strcmp(cmd, "start") == 0) {
-        const char* sessId = doc["sessionId"] | "";
-        sessionId = strlen(sessId) > 0 ? String(sessId) : ("usb-" + String(millis()));
+        sessionId = doc["sessionId"] | ("usb-" + String(millis()));
         isRecording = true;
         bufferIndex = 0;
         Serial.println("{\"status\":\"recording\",\"sessionId\":\"" + sessionId + "\"}");
@@ -550,6 +549,15 @@ void printStatus() {
   doc["sessionId"] = sessionId;
   doc["bufferUsed"] = bufferIndex;
   doc["uptime"] = millis() / 1000;
+  
+  // Add GPIO debug info
+  int rawADC = analogRead(ECG_PIN);
+  bool gpio2State = digitalRead(LO_MINUS_PIN);
+  bool gpio4State = digitalRead(LO_PLUS_PIN);
+  
+  doc["debug"]["rawADC"] = rawADC;
+  doc["debug"]["gpio2_state"] = gpio2State;
+  doc["debug"]["gpio4_state"] = gpio4State;
   
   serializeJson(doc, Serial);
   Serial.println();

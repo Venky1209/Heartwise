@@ -1,200 +1,103 @@
-# 📡 HeartWise ESP32 - WiFi Configuration
+# HeartWise ESP32 WiFi Auto-Configuration Guide
 
-## ✅ Updated Configuration (October 18, 2025)
+## How It Works (v4.0)
 
-### 🌐 WiFi Network Settings
-```
-WiFi Name (SSID): Dayalan
-WiFi Password:    9994238295@D
-```
+The ESP32 now **automatically handles WiFi and server configuration** — no need to edit code or re-flash when you change networks!
 
-### 🖥️ Server Settings
+### First Boot Flow
 ```
-Mac IP Address:   192.168.1.10
-Backend Port:     5001
-WebSocket Path:   /socket.io/?EIO=4&transport=websocket
+Power On → No config found → Creates "HeartWise-Setup" WiFi hotspot
+         → Connect from phone/laptop → Open 192.168.4.1
+         → Enter WiFi + server IP → Saved to flash → Reboots & connects
 ```
 
-### 📂 Updated Files
-The following Arduino files have been updated with the correct credentials:
-
-1. **`/Users/gugank/New Idea/heartwise-ecg/arduino/heartwise_ecg_monitor.ino`**
-   - WiFi SSID: `Dayalan`
-   - WiFi Password: `9994238295@D`
-   - Server IP: `192.168.1.10`
-   - Server Port: `5001`
-
-2. **`/Users/gugank/New Idea/heartwise-ecg/arduino/HeartWise_ESP32_READY.ino`**
-   - WiFi SSID: `Dayalan`
-   - WiFi Password: `9994238295@D`
-   - Server IP: `192.168.1.10`
-   - Server Port: `5001`
-
----
-
-## 🚀 Ready to Upload!
-
-Your ESP32 code is now configured and ready to upload:
-
-### 📋 Pre-Upload Checklist:
-- [x] WiFi credentials updated (`Dayalan` / `9994238295@D`)
-- [x] Server IP updated (`192.168.1.10`)
-- [x] Server port set (`5001`)
-- [ ] Backend server is running (`npm start` in backend folder)
-- [ ] ESP32 connected via USB
-- [ ] Correct COM port selected in Arduino IDE
-- [ ] Required libraries installed (WebSockets, ArduinoJson)
-
-### 🔧 Hardware Connections:
+### Subsequent Boots
 ```
-AD8232 → ESP32
-─────────────────
-OUTPUT → GPIO34 (ADC input)
-LO-    → GPIO2  (leads-off detection)
-LO+    → GPIO4  (leads-off detection)
-3.3V   → 3.3V   (power)
-GND    → GND    (ground)
+Power On → Loads saved config → Connects to WiFi → Connects to server ✓
 ```
 
-### 💻 Upload Steps:
-
-1. **Start Backend Server:**
-   ```bash
-   cd /Users/gugank/New\ Idea/heartwise-ecg/backend
-   npm start
-   ```
-
-2. **Open Arduino IDE:**
-   - Open: `/Users/gugank/New Idea/heartwise-ecg/arduino/HeartWise_ESP32_READY.ino`
-
-3. **Select Board & Port:**
-   - Board: `ESP32 Dev Module`
-   - Port: `/dev/cu.SLAB_USBtoUART` (or similar)
-   - Upload Speed: `115200`
-
-4. **Upload Code:**
-   - Click Upload button (→)
-   - Wait for "Done uploading"
-
-5. **Monitor Serial Output:**
-   - Open Serial Monitor (Ctrl+Shift+M)
-   - Baud Rate: `115200`
-   - Watch for connection messages
-
-### 📊 Expected Serial Output:
+### If WiFi Fails
 ```
-=== HeartWise ECG Monitor Starting ===
-Connecting to WiFi: Dayalan
-WiFi connected!
-IP Address: 192.168.1.xxx
-Connecting to server: 192.168.1.10:5001
-WebSocket connected!
-Device registered successfully
-Recording session started
-Sending ECG data...
+Can't connect → Falls back to config portal → Enter new credentials
 ```
 
 ---
 
-## 🔍 Troubleshooting:
+## Setup Steps
 
-### If WiFi won't connect:
-1. **Check WiFi name** - Make sure it's exactly `Dayalan` (case-sensitive)
-2. **Check password** - Verify `9994238295@D` is correct
-3. **Check 2.4GHz** - ESP32 only works with 2.4GHz WiFi (not 5GHz)
-4. **Router distance** - Move ESP32 closer to the router
+### 1. Flash the Firmware
+Upload `arduino/HeartWise_ESP32_ALL_IN_ONE/HeartWise_ESP32_ALL_IN_ONE.ino` using Arduino IDE.
 
-### If server won't connect:
-1. **Verify IP address:**
-   ```bash
-   ipconfig getifaddr en0
-   # Should show: 192.168.1.10
-   ```
+**Required libraries** (same as before):
+- WebSockets by Markus Sattler
+- ArduinoJson by Benoit Blanchon
+- (WiFi, WebServer, Preferences, DNSServer, BLE — built into ESP32 core)
 
-2. **Check backend is running:**
-   ```bash
-   curl http://192.168.1.10:5001/health
-   # Should return: {"status":"ok"}
-   ```
+### 2. First-Time Configuration
+1. Power on the ESP32
+2. On your phone or laptop, connect to WiFi: **`HeartWise-Setup`** (password: `heartwise`)
+3. A config page should auto-open. If not, go to **http://192.168.4.1**
+4. Select your WiFi network (auto-scanned) and enter the password
+5. Enter your computer's IP address (run `ifconfig` on Mac or `ipconfig` on Windows)
+6. Set server port (default `5001`)
+7. Click **Save & Connect** — the device reboots and connects automatically
 
-3. **Check firewall:**
-   ```bash
-   # Allow port 5001 in macOS firewall
-   ```
-
-### If data isn't flowing:
-1. **Check electrodes** - Ensure good skin contact
-2. **Check wiring** - Verify all 5 connections
-3. **Check Serial Monitor** - Look for error messages
-4. **Restart everything** - Backend → ESP32 → Browser
-
----
-
-## 📱 Test the System:
-
-1. **Upload code to ESP32**
-2. **Open Serial Monitor** - Verify WiFi & server connection
-3. **Open browser** - Go to `http://localhost:3000`
-4. **Navigate to ECG Monitor** page
-5. **Start recording session**
-6. **Attach ECG electrodes** to your chest
-7. **Watch real-time ECG waveform**
-
----
-
-## 🔄 If IP Address Changes:
-
-Your Mac's IP might change when you reconnect to WiFi. To check and update:
-
+### 3. Find Your Computer's IP
 ```bash
-# 1. Get current IP
-ipconfig getifaddr en0
+# Mac/Linux
+ifconfig | grep "inet " | grep -v 127.0.0.1
 
-# 2. If IP changed, update Arduino code:
-# Edit line 34 in HeartWise_ESP32_READY.ino
-const char* SERVER_IP = "NEW_IP_HERE";
-
-# 3. Re-upload to ESP32
+# Windows
+ipconfig | findstr "IPv4"
 ```
+Use the IP on the same network as the ESP32 (usually `192.168.x.x`).
 
 ---
 
-## 💾 Backup Info:
+## Changing Configuration
 
-**Previous Configuration:**
-- Old WiFi: `ACT103708193870_5g`
-- Old Password: `96836853`  
-- Old IP: `192.168.0.108`
+### Method 1: BOOT Button Reset
+Hold the **BOOT button** (GPIO0) while powering on → clears all saved settings → config portal starts.
 
-**Current Configuration:**
-- WiFi: `Dayalan`
-- Password: `9994238295@D`
-- IP: `192.168.1.10`
+### Method 2: Serial Commands
+Connect via USB and open Serial Monitor (115200 baud):
+
+| Command | Description |
+|---|---|
+| `CONFIG` | Show current saved settings |
+| `SET SSID YourNetwork` | Change WiFi network name |
+| `SET PASS YourPassword` | Change WiFi password |
+| `SET IP 192.168.1.50` | Change server IP |
+| `SET PORT 5001` | Change server port |
+| `REBOOT` | Restart with new settings |
+| `RESET` | Clear all settings and enter config portal |
+
+**Example: change server IP over serial**
+```
+SET IP 192.168.1.100
+REBOOT
+```
+
+### Method 3: Config Portal
+If the ESP32 can't connect to the stored WiFi (e.g., different network), it automatically re-enters config portal mode. Just connect to `HeartWise-Setup` again and update settings.
 
 ---
 
-## 📞 Quick Commands:
+## LED Indicators
 
-**Get current IP:**
-```bash
-ipconfig getifaddr en0
-```
-
-**Test backend server:**
-```bash
-curl http://192.168.1.10:5001/health
-```
-
-**Start backend:**
-```bash
-cd /Users/gugank/New\ Idea/heartwise-ecg/backend && npm start
-```
-
-**View backend logs:**
-```bash
-tail -f /Users/gugank/New\ Idea/heartwise-ecg/logs/backend.log
-```
+| Pattern | Meaning |
+|---|---|
+| 3 quick blinks | Boot complete |
+| Slow blink (1s) | Config portal mode — waiting for setup |
+| Fast toggle (0.5s) | Recording ECG data |
 
 ---
 
-**✅ Configuration Complete! Your ESP32 is ready to connect and stream ECG data!** 🎉
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| Can't see `HeartWise-Setup` WiFi | Wait 10 seconds after powering on; hold BOOT button during startup |
+| Config page doesn't auto-open | Manually go to `http://192.168.4.1` in your browser |
+| WiFi connects but no WebSocket | Check server IP is correct (`CONFIG` in serial), check backend is running |
+| Need to change network | Hold BOOT button during startup, or type `RESET` in serial |

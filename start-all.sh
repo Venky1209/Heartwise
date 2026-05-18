@@ -20,6 +20,7 @@ echo -e "${YELLOW}🧹 Cleaning up existing processes...${NC}"
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:5001 | xargs kill -9 2>/dev/null || true
 lsof -ti:5002 | xargs kill -9 2>/dev/null || true
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
 sleep 1
 
 # Create logs directory if it doesn't exist
@@ -38,7 +39,7 @@ sleep 2
 # Start ML Service
 echo -e "${BLUE}🤖 Starting ML Service (Port 5002)...${NC}"
 cd "$SCRIPT_DIR/ml-service"
-python3 app.py > "$SCRIPT_DIR/logs/ml-service.log" 2>&1 &
+/opt/homebrew/bin/python3.11 app.py > "$SCRIPT_DIR/logs/ml-service.log" 2>&1 &
 ML_PID=$!
 echo "   ML Service PID: $ML_PID"
 
@@ -52,17 +53,26 @@ npm start > "$SCRIPT_DIR/logs/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 echo "   Frontend PID: $FRONTEND_PID"
 
+# Start Landing Page
+echo -e "${BLUE}🌐 Starting Landing Page (Port 8080)...${NC}"
+cd "$SCRIPT_DIR/landing-page"
+npx serve -l 8080 > "$SCRIPT_DIR/logs/landing-page.log" 2>&1 &
+LANDING_PID=$!
+echo "   Landing Page PID: $LANDING_PID"
+
 echo ""
 echo -e "${GREEN}✅ All services started!${NC}"
 echo "================================"
 echo -e "📊 Backend:  http://localhost:5001"
 echo -e "🤖 ML Service: http://localhost:5002"
 echo -e "💻 Frontend: http://localhost:3000"
+echo -e "🌐 Landing Page: http://localhost:8080"
 echo ""
 echo -e "${YELLOW}📝 Logs are being written to:${NC}"
-echo "   - Backend:    logs/backend.log"
-echo "   - ML Service: logs/ml-service.log"
-echo "   - Frontend:   logs/frontend.log"
+echo "   - Backend:      logs/backend.log"
+echo "   - ML Service:   logs/ml-service.log"
+echo "   - Frontend:     logs/frontend.log"
+echo "   - Landing Page: logs/landing-page.log"
 echo ""
 echo -e "${YELLOW}💡 To stop all services, run:${NC}"
 echo "   ./stop-all.sh"
@@ -71,6 +81,7 @@ echo -e "${YELLOW}💡 To view live logs, run:${NC}"
 echo "   tail -f logs/backend.log"
 echo "   tail -f logs/ml-service.log"
 echo "   tail -f logs/frontend.log"
+echo "   tail -f logs/landing-page.log"
 echo ""
 echo -e "${GREEN}🎉 HeartWise is ready!${NC}"
 echo "   Opening browser in 5 seconds..."
@@ -80,6 +91,7 @@ sleep 5
 
 # Open browser (works on macOS)
 if command -v open &> /dev/null; then
+    open http://localhost:8080
     open http://localhost:3000
 fi
 
@@ -95,9 +107,11 @@ cleanup() {
     kill $FRONTEND_PID 2>/dev/null
     kill $BACKEND_PID 2>/dev/null
     kill $ML_PID 2>/dev/null
+    kill $LANDING_PID 2>/dev/null
     lsof -ti:3000 | xargs kill -9 2>/dev/null || true
     lsof -ti:5001 | xargs kill -9 2>/dev/null || true
     lsof -ti:5002 | xargs kill -9 2>/dev/null || true
+    lsof -ti:8080 | xargs kill -9 2>/dev/null || true
     echo -e "${GREEN}✅ All services stopped${NC}"
     exit 0
 }

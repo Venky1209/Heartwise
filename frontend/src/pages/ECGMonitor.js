@@ -33,10 +33,6 @@ const ECGMonitor = () => {
   const [bleData, setBleData] = useState([]);
   const [bleConnected, setBleConnected] = useState(false);
   const [usbConnected, setUsbConnected] = useState(false);
-
-  // Track where session started in data arrays
-  const [sessionStartBleIndex, setSessionStartBleIndex] = useState(0);
-  const [sessionStartRealtimeIndex, setSessionStartRealtimeIndex] = useState(0);
   
   // Refs for control functions
   const bleControlRef = useRef(null);
@@ -67,11 +63,12 @@ const ECGMonitor = () => {
     // Accept data in multiple formats:
     // 1. { type: 'ecg-data', data: [...] } - standard format
     // 2. { data: [...] } - simplified format
-    // 3. { type: 'status', ... } - status messages (ignore for data)
+    // 3. Skip status/info messages
     
-    // Skip non-data messages
-    if (data.type === 'device-info' || data.type === 'status' || data.status) {
-      console.log('USB status/info:', data);
+    console.log('📥 USB received:', data.type, data.data?.length || 0);
+    
+    if (data.type === 'status' || data.type === 'register' || data.type === 'heartbeat' || data.status || data.type === 'device-info') {
+      console.log('  (status/info, skipping)');
       return;
     }
     
@@ -84,16 +81,27 @@ const ECGMonitor = () => {
     }
     
     if (dataArray && dataArray.length > 0) {
-      // Add displayTime to each data point
+      console.log('  Processing', dataArray.length, 'samples');
+      const firstPoint = dataArray[0];
+      const lastPoint = dataArray[dataArray.length - 1];
+      console.log('  First point: V=' + firstPoint.voltage + ' mV, Q=' + firstPoint.quality + ', LO=' + firstPoint.leadsOff);
+      console.log('  Last point: V=' + lastPoint.voltage + ' mV, Q=' + lastPoint.quality + ', LO=' + lastPoint.leadsOff);
+      
       const now = Date.now();
       const dataWithDisplayTime = dataArray.map((point, index) => ({
         ...point,
-        // Handle both 'voltage' and 'v' field names
         voltage: point.voltage ?? point.v ?? 0,
-        displayTime: now - ((dataArray.length - 1 - index) * 4), // 4ms between samples at 250Hz
+        displayTime: now - ((dataArray.length - 1 - index) * 4),
       }));
+      
+      console.log('  Data points mapped with displayTime:', {
+        firstTime: new Date(dataWithDisplayTime[0].displayTime).toLocaleTimeString(),
+        lastTime: new Date(dataWithDisplayTime[dataWithDisplayTime.length - 1].displayTime).toLocaleTimeString()
+      });
+      
       setBleData(prev => {
         const newData = [...prev, ...dataWithDisplayTime];
+        console.log('  Total bleData now:', newData.length, 'points');
         return newData.slice(-7500);
       });
     }
@@ -161,13 +169,6 @@ const ECGMonitor = () => {
       }
     }
     
-    // For USB mode, check if connected
-    if (connectionMode === CONNECTION_MODES.USB) {
-      if (!usbControlRef.current?.isConnected()) {
-        toast.error('Please connect via USB Serial first');
-        return;
-      }
-    }
     
     // For WiFi mode, require device selection
     if (connectionMode === CONNECTION_MODES.WIFI && !selectedDevice) {
@@ -199,12 +200,12 @@ const ECGMonitor = () => {
         }
       }
       
-      // For USB mode, send start command via USB (non-blocking - data may already be flowing)
+      // For USB mode, send start command via USB
       if (connectionMode === CONNECTION_MODES.USB && usbControlRef.current) {
-        try {
-          await usbControlRef.current.startRecording(newSession.id);
-        } catch (e) {
-          console.warn('USB start command failed, but continuing - data may already be flowing:', e);
+        const started = await usbControlRef.current.startRecording(newSession.id);
+        if (!started) {
+          toast.error('Failed to start USB recording');
+          return;
         }
       }
       
@@ -213,13 +214,6 @@ const ECGMonitor = () => {
         joinSession(newSession.id);
       }
       
-      // Set session start index for stats
-      if (connectionMode === CONNECTION_MODES.WIFI) {
-        setSessionStartRealtimeIndex(realtimeECGData.length);
-      } else {
-        setSessionStartBleIndex(bleData.length);
-      }
-
       setIsRecording(true);
       setRecordingDuration(0);
       
@@ -254,6 +248,43 @@ const ECGMonitor = () => {
       // Stop USB recording if in USB mode
       if (connectionMode === CONNECTION_MODES.USB && usbControlRef.current) {
         await usbControlRef.current.stopRecording();
+      }
+      
+      // Save ECG data for USB/BLE modes (bleData contains the collected data)
+      if ((connectionMode === CONNECTION_MODES.USB || connectionMode === CONNECTION_MODES.BLE) && bleData.length > 0) {
+        console.log(`Saving ${bleData.length} ECG data points to database...`);
+        
+        // Format data for the bulk insert API
+        // qualityScore must be 0-1 (not 0-100), so divide by 100 if needed
+        const dataPoints = bleData.map(point => ({
+          timestamp: point.timestamp || point.displayTime || Date.now(),
+          voltage: point.voltage || 0,
+          qualityScore: point.quality ? Math.min(point.quality / 100, 1) : 0.5,
+          isArtifact: point.leadsOff || false
+        }));
+        
+        // Send data in batches to avoid request size limits
+        const batchSize = 1000;
+        let savedCount = 0;
+        for (let i = 0; i < dataPoints.length; i += batchSize) {
+          const batch = dataPoints.slice(i, i + batchSize);
+          try {
+            const response = await api.post('/ecg-data/bulk', {
+              sessionId: currentSession.id,
+              dataPoints: batch
+            });
+            savedCount += batch.length;
+            console.log(`Saved batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(dataPoints.length / batchSize)}`);
+          } catch (err) {
+            console.error('Error saving ECG batch:', err.response?.data || err.message);
+          }
+        }
+        
+        if (savedCount > 0) {
+          toast.success(`Saved ${savedCount} ECG data points`);
+        } else {
+          toast.error('Failed to save ECG data');
+        }
       }
       
       await api.put(`/sessions/${currentSession.id}`, {
@@ -353,21 +384,35 @@ const ECGMonitor = () => {
           <div className="medical-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Session Control</h3>
             
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <p className="font-bold text-blue-900">Current Mode:</p>
+              <p className="text-blue-700">{connectionMode.toUpperCase()}</p>
+              {connectionMode === CONNECTION_MODES.USB && usbConnected && (
+                <p className="text-green-600">✅ USB Connected</p>
+              )}
+              {connectionMode === CONNECTION_MODES.USB && !usbConnected && (
+                <p className="text-red-600">❌ USB Not Connected - Click button below</p>
+              )}
+            </div>
+            
+            {/* ConnectionModeSelector must stay mounted to maintain USB/BLE connection */}
+            {/* Hide it visually during recording but keep it in the DOM */}
+            <div className={isRecording ? 'hidden' : ''}>
+              <ConnectionModeSelector
+                currentMode={connectionMode}
+                onModeChange={setConnectionMode}
+                onBLEData={handleBLEData}
+                onBLEConnectionChange={handleBLEConnectionChange}
+                onUSBData={handleUSBData}
+                onUSBConnectionChange={setUsbConnected}
+                disabled={isRecording}
+                bleControlRef={bleControlRef}
+                usbControlRef={usbControlRef}
+              />
+            </div>
+
             {!isRecording ? (
               <div className="space-y-4">
-                {/* Connection Mode Selector */}
-                <ConnectionModeSelector
-                  currentMode={connectionMode}
-                  onModeChange={setConnectionMode}
-                  onBLEData={handleBLEData}
-                  onBLEConnectionChange={handleBLEConnectionChange}
-                  onUSBData={handleUSBData}
-                  onUSBConnectionChange={setUsbConnected}
-                  disabled={isRecording}
-                  bleControlRef={bleControlRef}
-                  usbControlRef={usbControlRef}
-                />
-
                 {/* User Info Display */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-900">Recording as:</p>
@@ -423,7 +468,7 @@ const ECGMonitor = () => {
                   onClick={startNewSession}
                   disabled={
                     loading || 
-                    (connectionMode === CONNECTION_MODES.WIFI && (!selectedDevice || !isConnected)) ||
+                    ((connectionMode === CONNECTION_MODES.WIFI || connectionMode === CONNECTION_MODES.USB) && (!selectedDevice || !isConnected)) ||
                     (connectionMode === CONNECTION_MODES.BLE && !bleConnected)
                   }
                   className="w-full btn-success flex items-center justify-center"
@@ -462,18 +507,13 @@ const ECGMonitor = () => {
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-600">Data Points</p>
                     <p className="text-xl font-bold text-blue-800">
-                      {connectionMode === CONNECTION_MODES.WIFI 
-                        ? realtimeECGData.length - sessionStartRealtimeIndex
-                        : bleData.length - sessionStartBleIndex}
+                      {connectionMode === CONNECTION_MODES.WIFI ? realtimeECGData.length : bleData.length}
                     </p>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <p className="text-sm text-green-600">Quality</p>
                     <p className="text-xl font-bold text-green-800">
-                      {(connectionMode === CONNECTION_MODES.WIFI
-                        ? (realtimeECGData.length - sessionStartRealtimeIndex) > 0
-                        : (bleData.length - sessionStartBleIndex) > 0
-                      ) ? 'Good' : 'No Signal'}
+                      {(connectionMode === CONNECTION_MODES.WIFI ? realtimeECGData.length : bleData.length) > 0 ? 'Good' : 'No Signal'}
                     </p>
                   </div>
                 </div>

@@ -54,59 +54,59 @@ function App() {
           <SocketProvider>
             <Router>
               <div className="App">
-              <Routes>
-                {/* Public Routes - Auth */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/profile/complete" element={<ProfileComplete />} />
-                
-                {/* Protected Routes - Main App */}
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="monitor" element={<ECGMonitor />} />
-                  <Route path="monitor/:sessionId" element={<ECGMonitor />} />
-                  <Route path="sessions" element={<Sessions />} />
-                  <Route path="sessions/:id" element={<SessionDetail />} />
-                  <Route path="devices" element={<Devices />} />
-                  <Route path="analysis" element={<Analysis />} />
-                  <Route path="analysis/:sessionId" element={<Analysis />} />
-                  <Route path="report/:sessionId" element={<ECGReport />} />
-                  <Route path="weekly-summary" element={<WeeklySummary />} />
-                  <Route path="risk-score" element={<RiskScore />} />
-                  <Route path="diet" element={<DietRecommendations />} />
-                  <Route path="ai-diet" element={<AIDietRecommendations />} />
-                  <Route path="chat" element={<ChatAssistant />} />
-                  
-                  {/* Doctor Routes */}
-                  <Route path="doctor/dashboard" element={<DoctorDashboard />} />
-                </Route>
-              </Routes>
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#363636',
-                    color: '#fff',
-                  },
-                  success: {
+                <Routes>
+                  {/* Public Routes - Auth */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/profile/complete" element={<ProfileComplete />} />
+
+                  {/* Protected Routes - Main App */}
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="profile" element={<Profile />} />
+                    <Route path="monitor" element={<ECGMonitor />} />
+                    <Route path="monitor/:sessionId" element={<ECGMonitor />} />
+                    <Route path="sessions" element={<Sessions />} />
+                    <Route path="sessions/:id" element={<SessionDetail />} />
+                    <Route path="devices" element={<Devices />} />
+                    <Route path="analysis" element={<Analysis />} />
+                    <Route path="analysis/:sessionId" element={<Analysis />} />
+                    <Route path="report/:sessionId" element={<ECGReport />} />
+                    <Route path="weekly-summary" element={<WeeklySummary />} />
+                    <Route path="risk-score" element={<RiskScore />} />
+                    <Route path="diet" element={<DietRecommendations />} />
+                    <Route path="ai-diet" element={<AIDietRecommendations />} />
+                    <Route path="chat" element={<ChatAssistant />} />
+
+                    {/* Doctor Routes */}
+                    <Route path="doctor/dashboard" element={<DoctorDashboard />} />
+                  </Route>
+                </Routes>
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
                     style: {
-                      background: '#10b981',
+                      background: '#363636',
+                      color: '#fff',
                     },
-                  },
-                  error: {
-                    style: {
-                      background: '#ef4444',
+                    success: {
+                      style: {
+                        background: '#10b981',
+                      },
                     },
-                  },
-                }}
-              />
-            </div>
-          </Router>
-        </SocketProvider>
-      </AuthProvider>
+                    error: {
+                      style: {
+                        background: '#ef4444',
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </Router>
+          </SocketProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

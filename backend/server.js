@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const WebSocket = require('ws');
+const dgram = require('dgram');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -55,6 +56,29 @@ pool.connect((err, client, release) => {
     release();
   }
 });
+
+// ==========================================
+// UDP AUTO-DISCOVERY SERVER FOR ESP32
+// ==========================================
+const udpServer = dgram.createSocket('udp4');
+
+udpServer.on('message', (msg, rinfo) => {
+  if (msg.toString().trim() === 'HEARTWISE_DISCOVER') {
+    // Reply back to the exact IP and Port the broadcast came from
+    const reply = Buffer.from('HEARTWISE_SERVER:5001');
+    udpServer.send(reply, rinfo.port, rinfo.address, (err) => {
+      if (err) console.error('UDP Discovery reply error:', err);
+      else console.log(`[UDP] Answered discovery broadcast from ESP32 at ${rinfo.address}`);
+    });
+  }
+});
+
+udpServer.on('listening', () => {
+  const address = udpServer.address();
+  console.log(`[UDP] Auto-Discovery Server listening on port ${address.port}`);
+});
+
+udpServer.bind(5003);
 
 // Store active ESP32 WebSocket connections
 const esp32Connections = new Map(); // deviceId -> WebSocket connection

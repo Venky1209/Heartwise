@@ -3,6 +3,7 @@ const router = express.Router();
 const Joi = require('joi');
 const axios = require('axios');
 const ecgAnalyzer = require('../utils/ecgAnalyzer');
+const { authenticateToken } = require('./auth');
 
 // ML Service URL (force IPv4)
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5002';
@@ -23,7 +24,7 @@ const analysisSchema = Joi.object({
 });
 
 // Get all analysis results
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const sessionId = req.query.sessionId;
     const analysisType = req.query.analysisType;
@@ -70,7 +71,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get analysis result by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -99,7 +100,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new analysis result
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { error, value } = analysisSchema.validate(req.body);
     
@@ -161,7 +162,7 @@ router.post('/', async (req, res) => {
 });
 
 // Run basic ECG analysis (placeholder for AI integration)
-router.post('/run/:sessionId', async (req, res) => {
+router.post('/run/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { analysisType = 'quality_assessment' } = req.body;
@@ -372,7 +373,7 @@ async function runAbnormalityDetection(db, sessionId) {
 }
 
 // Get analysis summary for a user
-router.get('/user/:userId/summary', async (req, res) => {
+router.get('/user/:userId/summary', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -401,7 +402,7 @@ router.get('/user/:userId/summary', async (req, res) => {
 });
 
 // NEW: Hybrid ECG Analysis Endpoint (Rule-Based + ML)
-router.post('/hybrid/:sessionId', async (req, res) => {
+router.post('/hybrid/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -584,9 +585,16 @@ router.post('/hybrid/:sessionId', async (req, res) => {
 
     // Step 6: Save analysis results to database
     try {
+      // Get user_id from the session for the analysis record
+      const sessionOwner = await req.app.locals.db.query(
+        'SELECT user_id FROM ecg_sessions WHERE id = $1', [sessionId]
+      );
+      const analysisUserId = sessionOwner.rows[0]?.user_id || req.user?.userId;
+
       const saveQuery = `
         INSERT INTO ecg_analysis_results (
-          session_id, 
+          session_id,
+          user_id,
           analysis_type, 
           confidence_score, 
           predictions, 
@@ -595,12 +603,13 @@ router.post('/hybrid/:sessionId', async (req, res) => {
           recommendations,
           model_version
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
       `;
       
       await req.app.locals.db.query(saveQuery, [
         sessionId,
+        analysisUserId,
         'hybrid_ai_ml',
         mlAnalysis.confidence || 0.5,
         JSON.stringify(combinedAnalysis.aiDiagnosis),
@@ -636,8 +645,7 @@ router.post('/hybrid/:sessionId', async (req, res) => {
     console.error('Error in hybrid analysis:', error);
     res.status(500).json({ 
       error: 'Analysis failed',
-      message: error.message,
-      details: error.stack
+      message: process.env.NODE_ENV === 'development' ? error.message : 'An internal error occurred'
     });
   }
 });

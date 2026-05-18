@@ -20,6 +20,9 @@ lsof -ti:5001 | xargs kill -9 2>/dev/null || echo "   No process on port 5001"
 echo -e "${YELLOW}Stopping ML Service (Port 5002)...${NC}"
 lsof -ti:5002 | xargs kill -9 2>/dev/null || echo "   No process on port 5002"
 
+echo -e "${YELLOW}Stopping Landing Page (Port 8080)...${NC}"
+lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "   No process on port 8080"
+
 # Kill any remaining node/python processes related to the project
 pkill -f "node.*server.js" 2>/dev/null || true
 pkill -f "python.*app.py" 2>/dev/null || true

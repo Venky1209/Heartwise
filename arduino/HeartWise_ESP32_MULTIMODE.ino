@@ -30,7 +30,7 @@
 
 // ====== CONNECTION MODE ======
 // 0 = WiFi (default), 1 = BLE, 2 = USB Serial
-#define CONNECTION_MODE 0
+#define CONNECTION_MODE 2
 
 // ====== WIFI CONFIGURATION ======
 const char* WIFI_SSID = "csec";

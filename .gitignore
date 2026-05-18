@@ -43,3 +43,18 @@ dist/
 *.pyc
 __pycache__/
 *.egg-info/
+
+# Auto-generated agent rules (personalized per developer)
+.brainsync/agent-rules.md
+
+AGENT.md
+CLAUDE.md
+.agent-mem/
+
+# Auto-generated AI agent exclusions
+.cursorrules
+.clineRules
+.agent/
+.windsurfrules
+.gemini/
+.cline/

@@ -134,6 +134,13 @@ router.get('/latest', async (req, res) => {
     res.json(result.rows[0]);
     
   } catch (error) {
+    // Handle missing table gracefully
+    if (error.message && error.message.includes('does not exist')) {
+      return res.status(404).json({
+        error: 'No risk assessment found',
+        message: 'Risk scoring is not yet initialized. Please calculate your first risk score.'
+      });
+    }
     console.error('Error fetching latest risk score:', error);
     res.status(500).json({ error: 'Failed to fetch risk score' });
   }
@@ -167,13 +174,15 @@ router.get('/history', async (req, res) => {
       LIMIT $3
     `, [userId, days, limit]);
     
-    // Calculate trend
-    const trendResult = await req.app.locals.db.query(
-      `SELECT calculate_risk_trend($1, 30) as trend`,
-      [userId]
-    );
-    
-    const trend = trendResult.rows[0]?.trend || 'insufficient_data';
+    // Calculate trend in JavaScript (avoids dependency on PL/pgSQL function)
+    let trend = 'insufficient_data';
+    if (result.rows.length >= 2) {
+      const recent = result.rows[0].overall_score;
+      const oldest = result.rows[result.rows.length - 1].overall_score;
+      if (recent > oldest + 5) trend = 'worsening';
+      else if (recent < oldest - 5) trend = 'improving';
+      else trend = 'stable';
+    }
     
     res.json({
       history: result.rows,
@@ -182,6 +191,14 @@ router.get('/history', async (req, res) => {
     });
     
   } catch (error) {
+    // Handle missing table gracefully
+    if (error.message && error.message.includes('does not exist')) {
+      return res.json({
+        history: [],
+        trend: 'insufficient_data',
+        total_assessments: 0
+      });
+    }
     console.error('Error fetching risk score history:', error);
     res.status(500).json({ error: 'Failed to fetch risk score history' });
   }
@@ -237,6 +254,10 @@ router.get('/alerts', async (req, res) => {
     res.json(result.rows);
     
   } catch (error) {
+    // Handle missing table gracefully
+    if (error.message && error.message.includes('does not exist')) {
+      return res.json([]);
+    }
     console.error('Error fetching risk alerts:', error);
     res.status(500).json({ error: 'Failed to fetch risk alerts' });
   }
@@ -344,14 +365,15 @@ async function gatherUserHealthData(db, userId) {
       (user.weight_kg / Math.pow(user.height_cm / 100, 2)).toFixed(1) :
       null;
     
-    // Get ECG metrics (from recent sessions)
+    // Get ECG metrics (from recent analysis results, not ecg_sessions which has no heart_rate column)
     const ecgResult = await db.query(`
       SELECT 
-        AVG(heart_rate) as avg_heart_rate,
-        COUNT(*) as session_count
-      FROM ecg_sessions
-      WHERE user_id = $1
-      AND start_time >= NOW() - INTERVAL '30 days'
+        AVG((ear.predictions->>'heartRate')::numeric) as avg_heart_rate,
+        COUNT(DISTINCT es.id) as session_count
+      FROM ecg_sessions es
+      LEFT JOIN ecg_analysis_results ear ON es.id = ear.session_id
+      WHERE es.user_id = $1
+      AND es.start_time >= NOW() - INTERVAL '30 days'
     `, [userId]);
     
     // Get recent analysis results
@@ -390,26 +412,29 @@ async function gatherUserHealthData(db, userId) {
         afib_detected: false // TODO: Check from analysis results
       },
       lifestyle: {
-        smoking_status: medHist.smoking_status || 'never',
-        years_since_quit: medHist.years_since_quit_smoking || 0,
+        smoking_status: medHist.smoker || 'never',
+        years_since_quit: medHist.quit_smoking_date ? 
+          Math.floor((new Date() - new Date(medHist.quit_smoking_date)) / (365.25 * 24 * 60 * 60 * 1000)) : 0,
         exercise_minutes_per_week: medHist.exercise_frequency ? 150 : 60, // Estimate
         bmi: parseFloat(bmi) || 25,
-        alcohol_drinks_per_week: medHist.alcohol_consumption || 0,
+        alcohol_drinks_per_week: medHist.alcohol_consumption === 'heavy' ? 14 : 
+          medHist.alcohol_consumption === 'moderate' ? 7 : 
+          medHist.alcohol_consumption === 'occasional' ? 3 : 0,
         diet_quality_score: 60 // TODO: Calculate from diet data
       },
       medical_history: {
-        hypertension: medHist.hypertension || false,
-        bp_controlled: medHist.bp_controlled || false,
-        diabetes: medHist.diabetes || false,
-        hba1c: medHist.hba1c || null,
-        ldl_cholesterol: medHist.ldl_cholesterol || null,
+        hypertension: medHist.has_hypertension || false,
+        bp_controlled: medHist.blood_pressure_systolic ? medHist.blood_pressure_systolic < 140 : false,
+        diabetes: medHist.has_diabetes || false,
+        hba1c: null, // Not tracked in current schema
+        ldl_cholesterol: medHist.cholesterol_level || null,
         previous_heart_attack: medHist.previous_heart_attack || false,
         previous_stroke: medHist.previous_stroke || false,
-        previous_cardiac_surgery: medHist.cardiac_surgery || false,
-        family_history_heart_disease: medHist.family_history_heart_disease || false,
-        family_history_age: medHist.family_history_age || null,
-        chronic_kidney_disease: medHist.kidney_disease || false,
-        sleep_apnea: medHist.sleep_apnea || false
+        previous_cardiac_surgery: (medHist.cardiac_procedures && medHist.cardiac_procedures.length > 0) || false,
+        family_history_heart_disease: medHist.family_cardiac_history || false,
+        family_history_age: null, // Not tracked in current schema
+        chronic_kidney_disease: medHist.has_kidney_disease || false,
+        sleep_apnea: medHist.has_sleep_apnea || false
       }
     };
     

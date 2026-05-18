@@ -25,7 +25,7 @@ router.get('/', authenticateToken, async (req, res) => {
         COUNT(edp.id) as data_points_count,
         COALESCE(AVG(edp.voltage_mv), 0) as avg_voltage
       FROM ecg_sessions es
-      INNER JOIN user_profiles up ON es.user_id = up.user_id
+      LEFT JOIN user_profiles up ON es.user_id = up.user_id
       LEFT JOIN ecg_data_points edp ON es.id = edp.session_id
       WHERE es.user_id = $1
       GROUP BY es.id, up.first_name, up.last_name
@@ -57,7 +57,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         AVG(edp.voltage_mv) as avg_voltage,
         d.device_name, d.firmware_version
       FROM ecg_sessions es
-      INNER JOIN user_profiles up ON es.user_id = up.user_id
+      LEFT JOIN user_profiles up ON es.user_id = up.user_id
       LEFT JOIN ecg_data_points edp ON es.id = edp.session_id
       LEFT JOIN devices d ON es.device_id = d.device_id
       WHERE es.id = $1 AND es.user_id = $2
@@ -160,9 +160,10 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Update session (typically to mark as completed)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
     const { isCompleted, endTime, notes } = req.body;
     
     let setClause = '';
@@ -198,10 +199,14 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
+    // Add user ownership param for WHERE clause
+    const userParamIndex = queryParams.length + 1;
+    queryParams.push(userId);
+
     const query = `
       UPDATE ecg_sessions 
       SET ${setClause}
-      WHERE id = $1
+      WHERE id = $1 AND user_id = $${userParamIndex}
       RETURNING *
     `;
     
@@ -238,12 +243,13 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete session
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
     
-    const query = 'DELETE FROM ecg_sessions WHERE id = $1 RETURNING id';
-    const result = await req.app.locals.db.query(query, [id]);
+    const query = 'DELETE FROM ecg_sessions WHERE id = $1 AND user_id = $2 RETURNING id';
+    const result = await req.app.locals.db.query(query, [id, userId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
@@ -257,7 +263,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Get ECG data for a session (for visualization)
-router.get('/:id/data', async (req, res) => {
+router.get('/:id/data', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -288,7 +294,7 @@ router.get('/:id/data', async (req, res) => {
 });
 
 // Get real-time ECG data (last N seconds)
-router.get('/:id/live', async (req, res) => {
+router.get('/:id/live', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const seconds = parseInt(req.query.seconds) || 30; // Default to last 30 seconds
@@ -297,11 +303,11 @@ router.get('/:id/live', async (req, res) => {
       SELECT timestamp_ms, voltage_mv, created_at
       FROM ecg_data_points
       WHERE session_id = $1 
-        AND created_at > NOW() - INTERVAL '${seconds} seconds'
+        AND created_at > NOW() - INTERVAL '1 second' * $2
       ORDER BY timestamp_ms ASC
     `;
     
-    const result = await req.app.locals.db.query(query, [id]);
+    const result = await req.app.locals.db.query(query, [id, seconds]);
     
     res.json({
       sessionId: id,

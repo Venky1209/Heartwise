@@ -213,7 +213,9 @@ const RealTimeECGChart = ({ sessionId, height = 400, externalData = null }) => {
           },
         },
         // Fixed Y-axis for consistent ECG display (±2mV typical ECG range)
-        suggestedMin: -500,
+        min: -2000,
+          max: 2000,
+          suggestedMin: -500,
         suggestedMax: 500,
       },
     },
@@ -225,7 +227,7 @@ const RealTimeECGChart = ({ sessionId, height = 400, externalData = null }) => {
   };
 
   useEffect(() => {
-    // console.log('🎨 Chart update triggered, data length:', ecgData.length);
+    console.log('🎨 Chart update triggered, data length:', ecgData.length);
     
     if (ecgData.length > 0) {
       const timeWindow = 5000; // Show last 5 seconds for better detail
@@ -238,7 +240,12 @@ const RealTimeECGChart = ({ sessionId, height = 400, externalData = null }) => {
       });
       
       // If no valid timestamps, use current time
-      if (latestTime === 0) latestTime = Date.now();
+      if (latestTime === 0) {
+        console.warn('⚠️ No valid displayTime or timestamp found in any data point!');
+        latestTime = Date.now();
+      }
+      
+      console.log('  Latest time:', new Date(latestTime).toLocaleTimeString());
       
       // Filter data to show only the last 5 seconds relative to latest data point
       const cutoffTime = latestTime - timeWindow;
@@ -257,6 +264,11 @@ const RealTimeECGChart = ({ sessionId, height = 400, externalData = null }) => {
           };
         })
         .sort((a, b) => a.x - b.x);
+
+      console.log('  Filtered:', filteredData.length, 'of', ecgData.length, 'points');
+      if (filteredData.length > 0) {
+        console.log('    Voltages range:', Math.min(...filteredData.map(d => d.y)), 'to', Math.max(...filteredData.map(d => d.y)));
+      }
 
       // Set scrolling X-axis range based on latest data
       if (filteredData.length > 0) {

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const { authenticateToken } = require('./auth');
 
 // Validation schema
 const deviceSchema = Joi.object({
@@ -12,7 +13,7 @@ const deviceSchema = Joi.object({
 });
 
 // Get all devices
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const query = `
       SELECT *, 
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get device by ID
-router.get('/:deviceId', async (req, res) => {
+router.get('/:deviceId', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     
@@ -68,7 +69,7 @@ router.get('/:deviceId', async (req, res) => {
 });
 
 // Register/Update device
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { error, value } = deviceSchema.validate(req.body);
     
@@ -110,7 +111,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update device status (heartbeat)
-router.post('/:deviceId/heartbeat', async (req, res) => {
+router.post('/:deviceId/heartbeat', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     const { batteryLevel, firmwareVersion } = req.body;
@@ -142,7 +143,7 @@ router.post('/:deviceId/heartbeat', async (req, res) => {
 });
 
 // Update device calibration
-router.post('/:deviceId/calibration', async (req, res) => {
+router.post('/:deviceId/calibration', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     const { calibrationData } = req.body;
@@ -175,7 +176,7 @@ router.post('/:deviceId/calibration', async (req, res) => {
 });
 
 // Deactivate device
-router.post('/:deviceId/deactivate', async (req, res) => {
+router.post('/:deviceId/deactivate', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     
@@ -203,7 +204,7 @@ router.post('/:deviceId/deactivate', async (req, res) => {
 });
 
 // Get device sessions history
-router.get('/:deviceId/sessions', async (req, res) => {
+router.get('/:deviceId/sessions', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -211,13 +212,13 @@ router.get('/:deviceId/sessions', async (req, res) => {
     const offset = (page - 1) * limit;
     
     const query = `
-      SELECT es.*, p.first_name, p.last_name,
+      SELECT es.*, up.first_name, up.last_name,
         COUNT(edp.id) as data_points_count
       FROM ecg_sessions es
-      JOIN patients p ON es.patient_id = p.id
+      LEFT JOIN user_profiles up ON es.user_id = up.user_id
       LEFT JOIN ecg_data_points edp ON es.id = edp.session_id
       WHERE es.device_id = $1
-      GROUP BY es.id, p.first_name, p.last_name
+      GROUP BY es.id, up.first_name, up.last_name
       ORDER BY es.start_time DESC
       LIMIT $2 OFFSET $3
     `;
@@ -237,7 +238,7 @@ router.get('/:deviceId/sessions', async (req, res) => {
 });
 
 // Get device statistics
-router.get('/:deviceId/stats', async (req, res) => {
+router.get('/:deviceId/stats', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
     

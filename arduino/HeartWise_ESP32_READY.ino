@@ -22,11 +22,11 @@
 #include <ArduinoJson.h>
 
 // ====== CONFIGURATION - UPDATE THESE VALUES ======
-const char* WIFI_SSID = "csec";                      // ✓ Your WiFi name
-const char* WIFI_PASSWORD = "paarivel";              // ✓ Your WiFi password
+const char* WIFI_SSID = "ACT103708193870";           // ✓ Your WiFi name
+const char* WIFI_PASSWORD = "96836853";              // ✓ Your WiFi password
 
 // Server Configuration (Your Mac's IP address)
-const char* SERVER_IP = "192.168.81.52";   // ← Your Mac's current IP
+const char* SERVER_IP = "192.168.0.111";   // ← Your Mac's current IP
 const int SERVER_PORT = 5001;
 const char* WEBSOCKET_PATH = "/socket.io/?EIO=4&transport=websocket";
 

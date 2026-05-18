@@ -216,6 +216,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_critical_risk_alert ON risk_scores;
 CREATE TRIGGER trigger_critical_risk_alert
 AFTER INSERT ON risk_scores
 FOR EACH ROW
@@ -254,6 +255,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_track_risk_history ON risk_scores;
 CREATE TRIGGER trigger_track_risk_history
 AFTER INSERT ON risk_scores
 FOR EACH ROW

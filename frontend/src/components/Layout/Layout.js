@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
-import { 
-  HomeIcon, 
-  UsersIcon, 
-  ChartBarIcon, 
-  CpuChipIcon, 
+import {
+  HomeIcon,
+  UsersIcon,
+  ChartBarIcon,
+  CpuChipIcon,
   HeartIcon,
   Cog6ToothIcon,
   Bars3Icon,
@@ -15,11 +15,9 @@ import {
   SparklesIcon,
   ShieldCheckIcon,
   ChatBubbleLeftRightIcon,
-  SunIcon,
-  MoonIcon
+  BellIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,18 +25,17 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, loading } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'AI Assistant', href: '/chat', icon: ChatBubbleLeftRightIcon },
-    { name: 'ECG Monitor', href: '/monitor', icon: HeartIcon },
-    { name: 'Risk Score', href: '/risk-score', icon: ShieldCheckIcon },
-    { name: 'Weekly Summary', href: '/weekly-summary', icon: CalendarDaysIcon },
-    { name: 'Diet Plan', href: '/ai-diet', icon: SparklesIcon },
+    { name: 'Monitor', href: '/monitor', icon: HeartIcon },
     { name: 'Sessions', href: '/sessions', icon: ChartBarIcon },
-    { name: 'Devices', href: '/devices', icon: CpuChipIcon },
     { name: 'Analysis', href: '/analysis', icon: Cog6ToothIcon },
+    { name: 'Risk Score', href: '/risk-score', icon: ShieldCheckIcon },
+    { name: 'Summary', href: '/weekly-summary', icon: CalendarDaysIcon },
+    { name: 'Diet', href: '/ai-diet', icon: SparklesIcon },
+    { name: 'AI Chat', href: '/chat', icon: ChatBubbleLeftRightIcon },
+    { name: 'Devices', href: '/devices', icon: CpuChipIcon },
   ];
 
   const isCurrentPath = (path) => {
@@ -50,199 +47,211 @@ const Layout = () => {
     navigate('/login');
   };
 
-  // Show loading spinner while checking auth
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric'
+  });
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1E1A1D' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading...</p>
+          <div className="w-10 h-10 border-3 border-t-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: '#3A3438', borderTopColor: '#F0ABFC' }}></div>
+          <p className="mt-4" style={{ color: '#A89DA3' }}>Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900">
-      {/* Mobile sidebar */}
-      <div className={`fixed inset-0 flex z-40 md:hidden ${sidebarOpen ? '' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)}></div>
-        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-gray-800">
-          <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <XMarkIcon className="h-6 w-6 text-white" />
-            </button>
-          </div>
-          <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
-            <div className="flex-shrink-0 flex items-center px-4">
-              <HeartIcon className="h-8 w-8 text-primary-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">HeartWise</span>
+    <div className="h-screen flex overflow-hidden" style={{ backgroundColor: '#1E1A1D' }}>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 flex z-40 md:hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setSidebarOpen(false)} />
+          <div className="relative flex-1 flex flex-col max-w-xs w-full" style={{ backgroundColor: '#17151A' }}>
+            <div className="absolute top-0 right-0 -mr-12 pt-2">
+              <button
+                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <XMarkIcon className="h-6 w-6" style={{ color: '#F5F0F2' }} />
+              </button>
             </div>
-            <nav className="mt-5 px-2 space-y-1">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`${
-                    isCurrentPath(item.href)
-                      ? 'bg-primary-100 dark:bg-primary-900 text-primary-900 dark:text-primary-100'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                  } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon
-                    className={`${
-                      isCurrentPath(item.href) ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300'
-                    } mr-4 flex-shrink-0 h-6 w-6`}
-                  />
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
-          <div className="flex flex-col h-0 flex-1 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-              <div className="flex items-center flex-shrink-0 px-4">
-                <HeartIcon className="h-8 w-8 text-primary-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">HeartWise</span>
+            <div className="flex-1 h-0 pt-6 pb-4 overflow-y-auto scrollbar-thin">
+              <div className="flex items-center px-6 mb-8">
+                <span className="text-lg font-semibold tracking-wider"
+                  style={{ color: '#F0ABFC', fontFamily: '"Plus Jakarta Sans", sans-serif', letterSpacing: '0.05em' }}>
+                  heartwise
+                </span>
               </div>
-              <nav className="mt-5 flex-1 px-2 space-y-1">
+              <nav className="px-3 space-y-1">
                 {navigation.map((item) => (
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`${
-                      isCurrentPath(item.href)
-                        ? 'bg-primary-100 dark:bg-primary-900 text-primary-900 dark:text-primary-100'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${isCurrentPath(item.href)
+                        ? ''
+                        : 'hover:bg-white/5'
+                      }`}
+                    style={isCurrentPath(item.href)
+                      ? { backgroundColor: 'rgba(240, 171, 252, 0.1)', color: '#F0ABFC' }
+                      : { color: '#A89DA3' }
+                    }
                   >
-                    <item.icon
-                      className={`${
-                        isCurrentPath(item.href) ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300'
-                      } mr-3 flex-shrink-0 h-6 w-6`}
-                    />
+                    <item.icon className="mr-3 flex-shrink-0 h-5 w-5"
+                      style={{ color: isCurrentPath(item.href) ? '#F0ABFC' : '#7A7078' }} />
                     {item.name}
                   </Link>
                 ))}
               </nav>
             </div>
-            <div className="flex-shrink-0 flex border-t border-gray-200 dark:border-gray-700 p-4">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                <p className="font-medium">ECG Monitoring System</p>
-                <p>Version 1.0.0</p>
-              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex md:flex-shrink-0">
+        <div className="flex flex-col" style={{ width: '240px' }}>
+          <div className="flex flex-col h-full" style={{ backgroundColor: '#17151A' }}>
+            {/* Logo */}
+            <div className="flex items-center px-6 pt-6 pb-8">
+              <span className="text-lg font-semibold"
+                style={{
+                  color: '#F0ABFC',
+                  fontFamily: '"Plus Jakarta Sans", sans-serif',
+                  letterSpacing: '0.05em'
+                }}>
+                heartwise
+              </span>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-thin">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${isCurrentPath(item.href)
+                      ? ''
+                      : 'hover:bg-white/5'
+                    }`}
+                  style={isCurrentPath(item.href)
+                    ? { backgroundColor: 'rgba(240, 171, 252, 0.1)', color: '#F0ABFC' }
+                    : { color: '#A89DA3' }
+                  }
+                >
+                  <item.icon className="mr-3 flex-shrink-0 h-5 w-5"
+                    style={{ color: isCurrentPath(item.href) ? '#F0ABFC' : '#7A7078' }} />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            {/* User section */}
+            <div className="flex-shrink-0 p-4" style={{ borderTop: '1px solid #2A2528' }}>
+              <Link to="/profile" className="flex items-center group">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+                  style={{ backgroundColor: 'rgba(240, 171, 252, 0.15)', color: '#F0ABFC' }}>
+                  {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium" style={{ color: '#F5F0F2' }}>
+                    {user?.firstName || user?.email?.split('@')[0]}
+                  </p>
+                  <p className="text-xs" style={{ color: '#7A7078' }}>View profile</p>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content area */}
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        {/* Top navigation */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700">
+        {/* Top bar */}
+        <div className="relative z-10 flex-shrink-0 flex h-16 items-center px-4 md:px-8"
+          style={{ backgroundColor: '#1E1A1D', borderBottom: '1px solid #2A2528' }}>
+          {/* Mobile menu button */}
           <button
-            className="px-4 border-r border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 md:hidden"
+            className="p-2 rounded-lg md:hidden"
             onClick={() => setSidebarOpen(true)}
+            style={{ color: '#A89DA3' }}
           >
             <Bars3Icon className="h-6 w-6" />
           </button>
-          <div className="flex-1 px-4 flex justify-between">
-            <div className="flex-1 flex">
-              <div className="w-full flex md:ml-0">
-                <div className="relative w-full text-gray-400 dark:text-gray-500 focus-within:text-gray-600 dark:focus-within:text-gray-300">
-                  <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                    <HeartIcon className="h-5 w-5" />
-                  </div>
-                  <div className="block w-full h-full pl-8 pr-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm">
-                    Professional ECG Monitoring Dashboard
-                  </div>
-                </div>
-              </div>
+
+          {/* Page title area */}
+          <div className="flex-1 flex items-center">
+            <div className="hidden md:block">
+              <h1 className="text-lg font-semibold"
+                style={{ color: '#F5F0F2', fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+                {navigation.find(n => isCurrentPath(n.href))?.name || 'Dashboard'}
+              </h1>
             </div>
-            <div className="ml-4 flex items-center md:ml-6 space-x-4">
-              {/* Dark Mode Toggle */}
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center space-x-4">
+            {/* Date */}
+            <span className="hidden md:block text-sm" style={{ color: '#7A7078' }}>{today}</span>
+
+            {/* Notification bell */}
+            <button className="relative p-2 rounded-lg transition-colors hover:bg-white/5"
+              style={{ color: '#A89DA3' }}>
+              <BellIcon className="h-5 w-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                style={{ backgroundColor: '#F0ABFC' }}></span>
+            </button>
+
+            {/* Profile dropdown */}
+            <div className="relative">
               <button
-                onClick={toggleDarkMode}
-                className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="flex items-center space-x-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
               >
-                {darkMode ? (
-                  <SunIcon className="h-6 w-6 text-yellow-500" />
-                ) : (
-                  <MoonIcon className="h-6 w-6 text-gray-600" />
-                )}
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+                  style={{ backgroundColor: 'rgba(240, 171, 252, 0.15)', color: '#F0ABFC' }}>
+                  {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <span className="hidden md:block text-sm font-medium" style={{ color: '#F5F0F2' }}>
+                  {user?.firstName || user?.email?.split('@')[0]}
+                </span>
               </button>
 
-              {/* Connection Status */}
-              <div className="flex items-center space-x-2">
-                <div className="status-light online"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-300">System Online</span>
-              </div>
-
-              {/* User Profile Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg px-3 py-2 transition"
-                >
-                  <UserCircleIcon className="h-8 w-8" />
-                  <div className="hidden md:block text-left">
-                    <p className="text-sm font-medium">{user?.firstName || user?.email}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {user?.subscriptionTier === 'lifetime' ? 'Lifetime Member' : 'Member'}
-                    </p>
-                  </div>
-                </button>
-
-                {/* Dropdown Menu */}
-                {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
-                    <Link
-                      to="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      <div className="flex items-center">
-                        <UserCircleIcon className="h-5 w-5 mr-2" />
-                        My Profile
-                      </div>
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <div className="flex items-center">
-                        <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                        Logout
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl py-1 z-50"
+                  style={{ backgroundColor: '#2A2528', border: '1px solid #3A3438', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                  <Link
+                    to="/profile"
+                    className="flex items-center px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
+                    onClick={() => setProfileMenuOpen(false)}
+                    style={{ color: '#F5F0F2' }}
+                  >
+                    <UserCircleIcon className="h-5 w-5 mr-2" style={{ color: '#A89DA3' }} />
+                    My Profile
+                  </Link>
+                  <button
+                    onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
+                    className="flex items-center w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
+                    style={{ color: '#FB7185' }}
+                  >
+                    <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Page content */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-100 dark:bg-gray-900">
+        <main className="flex-1 relative overflow-y-auto scrollbar-thin" style={{ backgroundColor: '#1E1A1D' }}>
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
               <Outlet />

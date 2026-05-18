@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const { authenticateToken } = require('./auth');
 
 // Validation schema for bulk ECG data upload
 const ecgDataSchema = Joi.object({
@@ -16,7 +17,7 @@ const ecgDataSchema = Joi.object({
 });
 
 // Get ECG data points for a session
-router.get('/:sessionId', async (req, res) => {
+router.get('/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const limit = parseInt(req.query.limit) || 50000; // Default to 50k points max
@@ -48,7 +49,7 @@ router.get('/:sessionId', async (req, res) => {
 });
 
 // Bulk insert ECG data points
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', authenticateToken, async (req, res) => {
   try {
     const { error, value } = ecgDataSchema.validate(req.body);
     
@@ -105,7 +106,7 @@ router.post('/bulk', async (req, res) => {
 });
 
 // Get ECG data statistics for a session
-router.get('/stats/:sessionId', async (req, res) => {
+router.get('/stats/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     
@@ -146,7 +147,7 @@ router.get('/stats/:sessionId', async (req, res) => {
 });
 
 // Export ECG data as CSV
-router.get('/export/:sessionId', async (req, res) => {
+router.get('/export/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const format = req.query.format || 'csv';
@@ -157,9 +158,9 @@ router.get('/export/:sessionId', async (req, res) => {
 
     // Get session info
     const sessionQuery = `
-      SELECT es.*, p.first_name, p.last_name
+      SELECT es.*, up.first_name, up.last_name
       FROM ecg_sessions es
-      JOIN patients p ON es.patient_id = p.id
+      LEFT JOIN user_profiles up ON es.user_id = up.user_id
       WHERE es.id = $1
     `;
     const sessionResult = await req.app.locals.db.query(sessionQuery, [sessionId]);
@@ -200,7 +201,7 @@ router.get('/export/:sessionId', async (req, res) => {
 });
 
 // Get ECG data for analysis (filtered, high quality)
-router.get('/analysis/:sessionId', async (req, res) => {
+router.get('/analysis/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const minQuality = parseFloat(req.query.minQuality) || 0.7;
@@ -246,7 +247,7 @@ router.get('/analysis/:sessionId', async (req, res) => {
 });
 
 // Mark data points as artifacts (for data cleaning)
-router.post('/mark-artifacts', async (req, res) => {
+router.post('/mark-artifacts', authenticateToken, async (req, res) => {
   try {
     const { sessionId, startTime, endTime, reason } = req.body;
     
