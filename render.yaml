@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: heartwise-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_HOST
+        fromDatabase:
+          name: heartwise-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: heartwise-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: heartwise-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: heartwise-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: heartwise-db
+          property: password
+
+databases:
+  - name: heartwise-db
+    databaseName: heartwise_ecg
+    user: heartwise_user
