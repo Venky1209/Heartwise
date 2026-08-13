@@ -24,6 +24,9 @@ import ChatAssistant from './components/ChatAssistant';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
+// Demo Page
+import DemoPage from './pages/DemoPage';
+
 // Doctor Pages
 import DoctorDashboard from './pages/DoctorDashboard';
 
@@ -55,14 +58,17 @@ function App() {
             <Router>
               <div className="App">
                 <Routes>
+                  {/* Public Routes - Landing/Demo */}
+                  <Route path="/" element={<DemoPage />} />
+
                   {/* Public Routes - Auth */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/profile/complete" element={<ProfileComplete />} />
 
                   {/* Protected Routes - Main App */}
-                  <Route path="/" element={<Layout />}>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/app" element={<Layout />}>
+                    <Route index element={<Navigate to="/app/dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="profile" element={<Profile />} />
                     <Route path="monitor" element={<ECGMonitor />} />

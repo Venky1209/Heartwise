@@ -27,15 +27,15 @@ const Layout = () => {
   const { user, logout, loading } = useAuth();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'Monitor', href: '/monitor', icon: HeartIcon },
-    { name: 'Sessions', href: '/sessions', icon: ChartBarIcon },
-    { name: 'Analysis', href: '/analysis', icon: Cog6ToothIcon },
-    { name: 'Risk Score', href: '/risk-score', icon: ShieldCheckIcon },
-    { name: 'Summary', href: '/weekly-summary', icon: CalendarDaysIcon },
-    { name: 'Diet', href: '/ai-diet', icon: SparklesIcon },
-    { name: 'AI Chat', href: '/chat', icon: ChatBubbleLeftRightIcon },
-    { name: 'Devices', href: '/devices', icon: CpuChipIcon },
+    { name: 'Dashboard', href: '/app/dashboard', icon: HomeIcon },
+    { name: 'Monitor', href: '/app/monitor', icon: HeartIcon },
+    { name: 'Sessions', href: '/app/sessions', icon: ChartBarIcon },
+    { name: 'Analysis', href: '/app/analysis', icon: Cog6ToothIcon },
+    { name: 'Risk Score', href: '/app/risk-score', icon: ShieldCheckIcon },
+    { name: 'Summary', href: '/app/weekly-summary', icon: CalendarDaysIcon },
+    { name: 'Diet', href: '/app/ai-diet', icon: SparklesIcon },
+    { name: 'AI Chat', href: '/app/chat', icon: ChatBubbleLeftRightIcon },
+    { name: 'Devices', href: '/app/devices', icon: CpuChipIcon },
   ];
 
   const isCurrentPath = (path) => {
@@ -44,7 +44,7 @@ const Layout = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -155,7 +155,7 @@ const Layout = () => {
 
             {/* User section */}
             <div className="flex-shrink-0 p-4" style={{ borderTop: '1px solid #2A2528' }}>
-              <Link to="/profile" className="flex items-center group">
+              <Link to="/app/profile" className="flex items-center group">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
                   style={{ backgroundColor: 'rgba(240, 171, 252, 0.15)', color: '#F0ABFC' }}>
                   {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}

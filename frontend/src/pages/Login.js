@@ -35,9 +35,9 @@ const Login = () => {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
-      let redirectPath = '/dashboard';
-      if (result.user?.role === 'doctor') redirectPath = '/doctor/dashboard';
-      else if (result.user?.role === 'admin') redirectPath = '/admin/dashboard';
+      let redirectPath = '/app/dashboard';
+      if (result.user?.role === 'doctor') redirectPath = '/app/doctor/dashboard';
+      else if (result.user?.role === 'admin') redirectPath = '/app/dashboard';
       const from = location.state?.from?.pathname || redirectPath;
       navigate(from, { replace: true });
     } else {
